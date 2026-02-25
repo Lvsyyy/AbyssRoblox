@@ -17,6 +17,7 @@ local sellAll = loadModule("sellAll")
 local portableStash = loadModule("portableStash")
 local artifactSets = loadModule("artifactSets")
 local antiAfk = loadModule("antiAfk")
+local shopBuyer = loadModule("shopBuyer")
 local artifactScanner = loadModule("artifactScanner")
 local updateArtifacts = loadModule("abyss_UpdateArtifacts")
 local deleteBadArtifacts = loadModule("abyss_DeleteBadArtifacts")
@@ -32,6 +33,8 @@ local setFishToggleVisual
 local refreshFishList
 local applyArtifactAutoDeleteList
 local getArtifactAutoDeleteList
+local setShopToggleVisual
+local refreshShopList
 
 local old = pg:FindFirstChild("AbyssQoLGui")
 if old then old:Destroy() end
@@ -167,7 +170,8 @@ do
 
 	local list = Instance.new("ScrollingFrame")
 	list.Parent = t
-	list.Size = UDim2.new(1, 0, 0, 100)
+	list.Position = UDim2.fromOffset(4, 0)
+	list.Size = UDim2.new(1, -8, 0, 100)
 	list.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
 	list.BorderSizePixel = 0
 	list.ScrollBarThickness = 6
@@ -325,7 +329,8 @@ do
 
 	local list = Instance.new("ScrollingFrame")
 	list.Parent = t
-	list.Size = UDim2.new(1, 0, 0, 140)
+	list.Position = UDim2.fromOffset(4, 0)
+	list.Size = UDim2.new(1, -8, 0, 140)
 	list.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
 	list.BorderSizePixel = 0
 	list.ScrollBarThickness = 6
@@ -434,12 +439,111 @@ do
 			fishEnabled = fishAutoDelete.getEnabled(),
 			antiAfk = antiOn,
 			artifactAutoDelete = getArtifactAutoDeleteList and getArtifactAutoDeleteList() or {},
+			shopItems = shopBuyer.getItems(),
+			shopEnabled = shopBuyer.getEnabled(),
 		}
 		local ok, data = pcall(function() return HttpService:JSONEncode(payload) end)
 		if ok and type(data) == "string" then
 			pcall(writefile, SAVE_PATH, data)
 		end
 	end)
+
+	local row3 = makeRow(t, 2, 34)
+	local shopToggleBtn = makeButton(row3, "Shop Buyer: OFF", Color3.fromRGB(95, 95, 95))
+	local shopClearBtn = makeButton(row3, "Clear List", Color3.fromRGB(120, 62, 62))
+
+	local inputRow = makeRow(t, 2, 34)
+	local itemBox = Instance.new("TextBox")
+	itemBox.Parent = inputRow
+	itemBox.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
+	itemBox.Font = Enum.Font.Gotham
+	itemBox.TextSize = 13
+	itemBox.TextColor3 = Color3.new(1, 1, 1)
+	itemBox.PlaceholderText = ""
+	itemBox.ClearTextOnFocus = false
+	itemBox.Text = ""
+	itemBox.BorderSizePixel = 0
+	Instance.new("UICorner", itemBox).CornerRadius = UDim.new(0, 6)
+
+	local addBtn = makeButton(inputRow, "Add", Color3.fromRGB(58, 120, 66))
+
+	local list = Instance.new("ScrollingFrame")
+	list.Parent = t
+	list.Position = UDim2.fromOffset(4, 0)
+	list.Size = UDim2.new(1, -8, 0, 100)
+	list.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
+	list.BorderSizePixel = 0
+	list.ScrollBarThickness = 6
+	Instance.new("UICorner", list).CornerRadius = UDim.new(0, 8)
+
+	local lo = Instance.new("UIListLayout", list)
+	lo.Padding = UDim.new(0, 4)
+
+	local pd = Instance.new("UIPadding", list)
+	pd.PaddingTop = UDim.new(0, 6)
+	pd.PaddingBottom = UDim.new(0, 6)
+	pd.PaddingLeft = UDim.new(0, 6)
+	pd.PaddingRight = UDim.new(0, 6)
+
+	local function refreshList()
+		for _, child in ipairs(list:GetChildren()) do
+			if child:IsA("TextLabel") then child:Destroy() end
+		end
+		local names = shopBuyer.getItems()
+		for i = 1, #names do
+			local label = Instance.new("TextLabel")
+			label.Parent = list
+			label.Size = UDim2.new(1, -8, 0, 22)
+			label.BackgroundColor3 = Color3.fromRGB(45, 45, 54)
+			label.BorderSizePixel = 0
+			label.Font = Enum.Font.Gotham
+			label.TextSize = 12
+			label.TextColor3 = Color3.fromRGB(240, 240, 240)
+			label.TextXAlignment = Enum.TextXAlignment.Left
+			label.Text = names[i]
+			local lp = Instance.new("UIPadding", label)
+			lp.PaddingLeft = UDim.new(0, 6)
+		end
+		task.defer(function()
+			list.CanvasSize = UDim2.new(0, 0, 0, lo.AbsoluteContentSize.Y + 12)
+		end)
+	end
+	refreshShopList = refreshList
+
+	local function setToggleVisual(on)
+		if on then
+			shopToggleBtn.Text = "Shop Buyer: ON"
+			shopToggleBtn.BackgroundColor3 = Color3.fromRGB(55, 145, 85)
+		else
+			shopToggleBtn.Text = "Shop Buyer: OFF"
+			shopToggleBtn.BackgroundColor3 = Color3.fromRGB(95, 95, 95)
+		end
+	end
+	setShopToggleVisual = setToggleVisual
+
+	shopToggleBtn.MouseButton1Click:Connect(function()
+		local on = not shopBuyer.getEnabled()
+		shopBuyer.setEnabled(on)
+		setToggleVisual(on)
+	end)
+
+	addBtn.MouseButton1Click:Connect(function()
+		local name = itemBox.Text
+		name = name:gsub("^%s+", ""):gsub("%s+$", "")
+		if name == "" then return end
+		if shopBuyer.addItem(name) then
+			itemBox.Text = ""
+			refreshList()
+		end
+	end)
+
+	shopClearBtn.MouseButton1Click:Connect(function()
+		shopBuyer.clearItems()
+		refreshList()
+	end)
+
+	setToggleVisual(shopBuyer.getEnabled())
+	refreshList()
 end
 
 local function loadSavedSettings()
@@ -470,6 +574,18 @@ local function loadSavedSettings()
 		end
 		if setAntiAfk and decoded.antiAfk ~= nil then
 			setAntiAfk(decoded.antiAfk == true)
+		end
+		if type(decoded.shopItems) == "table" then
+			shopBuyer.setItems(decoded.shopItems)
+		end
+		if decoded.shopEnabled ~= nil then
+			shopBuyer.setEnabled(decoded.shopEnabled == true)
+		end
+		if setShopToggleVisual then
+			setShopToggleVisual(shopBuyer.getEnabled())
+		end
+		if refreshShopList then
+			refreshShopList()
 		end
 	else
 		local list = {}

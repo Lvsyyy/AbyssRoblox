@@ -13,6 +13,7 @@ Game: https://www.roblox.com/games/127794225497302/Abyss
 | `artifactScanner.lua` | Returns a sorted list of artifact names from the library. |
 | `artifactAutoDelete.lua` | Enables or disables auto-delete for a selected artifact. |
 | `fishAutoDelete.lua` | Manages fish name auto-delete with toggle and cache watchers. |
+| `shopBuyer.lua` | Auto-buys selected merchant items on a loop. |
 | `abyss_UpdateArtifacts.lua` | Updates each artifact set with the best matching stats. |
 | `abyss_DeleteBadArtifacts.lua` | Deletes non-protected artifacts not in the top 3 of each category. |
 | `abyss_QoL_gui.lua` | Tabbed GUI that loads and calls the other scripts via loadstring. |
