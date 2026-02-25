@@ -18,6 +18,7 @@ local artifactSets = loadModule("artifactSets")
 local antiAfk = loadModule("antiAfk")
 local artifactScanner = loadModule("artifactScanner")
 local updateArtifacts = loadModule("abyss_UpdateArtifacts")
+local deleteBadArtifacts = loadModule("abyss_DeleteBadArtifacts")
 local autoDelete = loadModule("artifactAutoDelete")
 local fishAutoDelete = loadModule("fishAutoDelete")
 
@@ -174,10 +175,19 @@ do
 	pd.PaddingRight = UDim.new(0, 6)
 
 	local sel, rows = nil, {}
+	local autoDeleteEnabled = {}
+
+	local function rowColor(name)
+		if autoDeleteEnabled[name] then
+			return Color3.fromRGB(150, 62, 62)
+		end
+		return (name == sel and Color3.fromRGB(70, 94, 138) or Color3.fromRGB(45, 45, 54))
+	end
+
 	local function paint()
 		for name, b in pairs(rows) do
 			if b.Parent then
-				b.BackgroundColor3 = (name == sel and Color3.fromRGB(70, 94, 138) or Color3.fromRGB(45, 45, 54))
+				b.BackgroundColor3 = rowColor(name)
 			end
 		end
 	end
@@ -202,7 +212,7 @@ do
 			b.Font = Enum.Font.Gotham
 			b.TextSize = 13
 			b.TextColor3 = Color3.new(1, 1, 1)
-			b.BackgroundColor3 = Color3.fromRGB(45, 45, 54)
+			b.BackgroundColor3 = rowColor(name)
 			b.BorderSizePixel = 0
 			Instance.new("UICorner", b).CornerRadius = UDim.new(0, 5)
 			local p = Instance.new("UIPadding", b)
@@ -223,17 +233,26 @@ do
 
 	populateArtifacts()
 
+	local row2b = makeRow(t, 1, 34)
+	makeButton(row2b, "Delete Bad Artifacts", Color3.fromRGB(120, 62, 62)).MouseButton1Click:Connect(
+		function() deleteBadArtifacts.deleteBadArtifacts() end
+	)
+
 	local row3 = makeRow(t, 2, 34)
 	makeButton(row3, "Enable Delete", Color3.fromRGB(58, 120, 66)).MouseButton1Click:Connect(
 		function()
 			if not sel then return end
 			autoDelete.setAutoDelete(sel, true)
+			autoDeleteEnabled[sel] = true
+			paint()
 		end
 	)
 	makeButton(row3, "Disable Delete", Color3.fromRGB(120, 62, 62)).MouseButton1Click:Connect(
 		function()
 			if not sel then return end
 			autoDelete.setAutoDelete(sel, false)
+			autoDeleteEnabled[sel] = nil
+			paint()
 		end
 	)
 end
@@ -263,8 +282,9 @@ do
 	nameBox.Font = Enum.Font.Gotham
 	nameBox.TextSize = 13
 	nameBox.TextColor3 = Color3.new(1, 1, 1)
-	nameBox.PlaceholderText = "Fish name..."
+	nameBox.PlaceholderText = ""
 	nameBox.ClearTextOnFocus = false
+	nameBox.Text = ""
 	nameBox.BorderSizePixel = 0
 	Instance.new("UICorner", nameBox).CornerRadius = UDim.new(0, 6)
 

@@ -12,4 +12,5 @@ If you somehow find this feel free to use these scripts for your own quality of 
 | `artifactAutoDelete.lua` | Enables or disables auto-delete for a selected artifact. |
 | `fishAutoDelete.lua` | Manages fish name auto-delete with toggle and cache watchers. |
 | `abyss_UpdateArtifacts.lua` | Updates each artifact set with the best matching stats. |
+| `abyss_DeleteBadArtifacts.lua` | Deletes non-protected artifacts not in the top 3 of each category. |
 | `abyss_QoL_gui.lua` | Tabbed GUI that loads and calls the other scripts via loadstring. |
