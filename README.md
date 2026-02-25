@@ -21,5 +21,5 @@ Game: https://www.roblox.com/games/127794225497302/Abyss
 
 ## Run This
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/AbyssRoblox/abyss_QoL_gui.lua"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/abyss_QoL_gui.lua"))()
 ```

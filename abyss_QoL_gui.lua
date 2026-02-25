@@ -4,7 +4,7 @@ local HttpService = game:GetService("HttpService")
 local lp = Players.LocalPlayer
 local pg = lp:WaitForChild("PlayerGui")
 
-local BASE = "https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/AbyssRoblox/"
+local BASE = "https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/"
 local SAVE_PATH = "abyss_settings.json"
 
 local function loadModule(name)
