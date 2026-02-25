@@ -207,7 +207,10 @@ do
 
 	local function populateArtifacts()
 		clearList()
-		local names = artifactScanner.scanArtifactNames()
+		local ok, names = pcall(artifactScanner.scanArtifactNames)
+		if not ok or type(names) ~= "table" then
+			names = {}
+		end
 		for i = 1, #names do
 			local name = names[i]
 			local b = Instance.new("TextButton")
