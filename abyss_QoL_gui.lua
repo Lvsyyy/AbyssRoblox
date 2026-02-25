@@ -30,6 +30,8 @@ local antiOn = false
 local setAntiAfk
 local setFishToggleVisual
 local refreshFishList
+local applyArtifactAutoDeleteList
+local getArtifactAutoDeleteList
 
 local old = pg:FindFirstChild("AbyssQoLGui")
 if old then old:Destroy() end
@@ -267,7 +269,7 @@ do
 		end
 	)
 
-	local function applyArtifactAutoDeleteList(list)
+	local function applyArtifactAutoDeleteListImpl(list)
 		for i = 1, #list do
 			local name = list[i]
 			autoDelete.setAutoDelete(name, true)
@@ -275,9 +277,7 @@ do
 		end
 		paint()
 	end
-
-	t._applyArtifactAutoDeleteList = applyArtifactAutoDeleteList
-	t._getArtifactAutoDeleteList = function()
+	local function getArtifactAutoDeleteListImpl()
 		local out = {}
 		for name in pairs(autoDeleteEnabled) do
 			out[#out + 1] = name
@@ -285,6 +285,9 @@ do
 		table.sort(out)
 		return out
 	end
+
+	applyArtifactAutoDeleteList = applyArtifactAutoDeleteListImpl
+	getArtifactAutoDeleteList = getArtifactAutoDeleteListImpl
 end
 
 -- Deletion / Clean Up tab
@@ -430,9 +433,7 @@ do
 			fishNames = fishAutoDelete.getNames(),
 			fishEnabled = fishAutoDelete.getEnabled(),
 			antiAfk = antiOn,
-			artifactAutoDelete = tabs["Artifacts"]._getArtifactAutoDeleteList
-				and tabs["Artifacts"]._getArtifactAutoDeleteList()
-				or {},
+			artifactAutoDelete = getArtifactAutoDeleteList and getArtifactAutoDeleteList() or {},
 		}
 		local ok, data = pcall(function() return HttpService:JSONEncode(payload) end)
 		if ok and type(data) == "string" then
@@ -464,11 +465,8 @@ local function loadSavedSettings()
 		if refreshFishList then
 			refreshFishList()
 		end
-		if type(decoded.artifactAutoDelete) == "table" then
-			local t = tabs["Artifacts"]
-			if t._applyArtifactAutoDeleteList then
-				t._applyArtifactAutoDeleteList(decoded.artifactAutoDelete)
-			end
+		if type(decoded.artifactAutoDelete) == "table" and applyArtifactAutoDeleteList then
+			applyArtifactAutoDeleteList(decoded.artifactAutoDelete)
 		end
 		if setAntiAfk and decoded.antiAfk ~= nil then
 			setAntiAfk(decoded.antiAfk == true)
