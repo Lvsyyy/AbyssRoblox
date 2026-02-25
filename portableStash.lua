@@ -9,21 +9,22 @@ local tonumber = tonumber
 
 local S = RS.common.packages.Knit.Services
 local StorageRF = S.StorageService.RF
-local BackpackRF = S.BackpackService.RF
 
 local DepositRF, WithdrawRF = StorageRF.Deposit, StorageRF.Withdraw
 
-local Main = pg.Main
-local backpackGui = Main.Backpack
-local FishList = backpackGui.List.CanvasGroup.ScrollingFrame
-local storageRoot = Main.Center.Storage.CanvasGroup.Storage
-local hotbarRoot = backpackGui.Hotbar
+local Main
+local backpackGui
+local FishList
+local storageRoot
+local hotbarRoot
 
 local _ids, _ws, _ord = table.create(256), table.create(256), table.create(256)
 local _lastW, _lastD = 0, 0
 
 local backpackFishWeights = {} -- [id]=weight
 local hotbarFishWeights = {}   -- [id]=weight
+
+local initialized = false
 
 local function isFishId(v)
 	return type(v) == "string" and #v == 32 and v:match("^[a-f0-9]+$") ~= nil
@@ -122,72 +123,46 @@ local function depositFishByWeightDesc()
 	DepositRF:InvokeServer(_ids)
 end
 
--- initial cache build
-rebuildBackpackFishCache()
-rebuildHotbarFishCache()
+local function init()
+	if initialized then return end
+	initialized = true
 
--- backpack watchers
-FishList.ChildAdded:Connect(addBackpackFish)
-FishList.ChildRemoved:Connect(removeBackpackFish)
+	Main = pg.Main
+	backpackGui = Main.Backpack
+	FishList = backpackGui.List.CanvasGroup.ScrollingFrame
+	storageRoot = Main.Center.Storage.CanvasGroup.Storage
+	hotbarRoot = backpackGui.Hotbar
 
--- hotbar watchers
-local function hookHotbarSlot(slot)
-	if slot.ClassName ~= "Frame" or not tonumber(slot.Name) then return end
-	slot:GetAttributeChangedSignal("id"):Connect(rebuildHotbarFishCache)
-	slot:GetAttributeChangedSignal("class"):Connect(rebuildHotbarFishCache)
-	slot:GetAttributeChangedSignal("weight"):Connect(rebuildHotbarFishCache)
-end
-
-do
-	local kids = hotbarRoot:GetChildren()
-	for i = 1, #kids do hookHotbarSlot(kids[i]) end
-end
-
-hotbarRoot.ChildAdded:Connect(function(child)
-	hookHotbarSlot(child)
+	rebuildBackpackFishCache()
 	rebuildHotbarFishCache()
-end)
 
-hotbarRoot.ChildRemoved:Connect(rebuildHotbarFishCache)
+	FishList.ChildAdded:Connect(addBackpackFish)
+	FishList.ChildRemoved:Connect(removeBackpackFish)
 
--- UI
-local old = pg:FindFirstChild("PortableStashGui")
-if old then old:Destroy() end
+	local function hookHotbarSlot(slot)
+		if slot.ClassName ~= "Frame" or not tonumber(slot.Name) then return end
+		slot:GetAttributeChangedSignal("id"):Connect(rebuildHotbarFishCache)
+		slot:GetAttributeChangedSignal("class"):Connect(rebuildHotbarFishCache)
+		slot:GetAttributeChangedSignal("weight"):Connect(rebuildHotbarFishCache)
+	end
 
-local sg = Instance.new("ScreenGui")
-sg.Name = "PortableStashGui"
-sg.ResetOnSpawn = false
-sg.Parent = pg
+	do
+		local kids = hotbarRoot:GetChildren()
+		for i = 1, #kids do hookHotbarSlot(kids[i]) end
+	end
 
-local frame = Instance.new("Frame")
-frame.Parent = sg
-frame.Size = UDim2.fromOffset(260, 55)
-frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-frame.Active = true
-frame.Draggable = true
-frame.Position = UDim2.fromOffset(100, 170)
-frame.BorderSizePixel = 0
+	hotbarRoot.ChildAdded:Connect(function(child)
+		hookHotbarSlot(child)
+		rebuildHotbarFishCache()
+	end)
 
-local function btn(t, x, y, c)
-	local b = Instance.new("TextButton")
-	b.Parent = frame
-	b.Position = UDim2.fromOffset(x, y)
-	b.Size = UDim2.fromOffset(110, 34)
-	b.BackgroundColor3 = c
-	b.Font = Enum.Font.GothamSemibold
-	b.TextSize = 13
-	b.TextColor3 = Color3.fromRGB(240, 240, 240)
-	b.Text = t
-	b.BorderSizePixel = 0
-	return b
+	hotbarRoot.ChildRemoved:Connect(rebuildHotbarFishCache)
 end
 
-local depositBtn  = btn("Deposit", 10, 10, Color3.fromRGB(46, 140, 87))
-local withdrawBtn = btn("Withdraw", 140, 10, Color3.fromRGB(150, 62, 62))
-
-depositBtn.MouseButton1Click:Connect(function()
-	rebuildHotbarFishCache()
-	depositFishByWeightDesc()
-end)
-
-withdrawBtn.MouseButton1Click:Connect(withdrawAll)
+return {
+	init = init,
+	depositFishByWeightDesc = depositFishByWeightDesc,
+	withdrawAll = withdrawAll,
+	rebuildBackpackFishCache = rebuildBackpackFishCache,
+	rebuildHotbarFishCache = rebuildHotbarFishCache,
+}
