@@ -93,7 +93,12 @@ end
 local function makeRow(parent, columns, height)
 	local row = Instance.new("Frame")
 	row.Parent = parent
-	row.Size = UDim2.new(1, 0, 0, height)
+	if columns == 1 then
+		row.Position = UDim2.fromOffset(4, 0)
+		row.Size = UDim2.new(1, -8, 0, height)
+	else
+		row.Size = UDim2.new(1, 0, 0, height)
+	end
 	row.BackgroundTransparency = 1
 
 	local grid = Instance.new("UIGridLayout", row)
@@ -102,6 +107,7 @@ local function makeRow(parent, columns, height)
 	local cellPad = (columns == 1) and 0 or pad
 	grid.CellPadding = UDim2.fromOffset(cellPad, 0)
 	grid.CellSize = UDim2.new(1 / columns, xOffset, 1, 0)
+	grid.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
 	return row
 end
