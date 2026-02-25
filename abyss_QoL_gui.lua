@@ -98,8 +98,9 @@ local function makeRow(parent, columns, height)
 
 	local grid = Instance.new("UIGridLayout", row)
 	local pad = 8
-	local xOffset = (columns == 1) and 0 or -pad
-	grid.CellPadding = UDim2.fromOffset(pad, 0)
+	local xOffset = -pad
+	local cellPad = (columns == 1) and 0 or pad
+	grid.CellPadding = UDim2.fromOffset(cellPad, 0)
 	grid.CellSize = UDim2.new(1 / columns, xOffset, 1, 0)
 
 	return row
