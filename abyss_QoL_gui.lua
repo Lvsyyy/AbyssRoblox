@@ -180,8 +180,8 @@ do
 
 	local list = Instance.new("ScrollingFrame")
 	list.Parent = t
-	list.Position = UDim2.fromOffset(2, 0)
-	list.Size = UDim2.new(1, -4, 0, 100)
+	list.Position = UDim2.fromOffset(0, 0)
+	list.Size = UDim2.new(1, 0, 0, 120)
 	list.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
 	list.BorderSizePixel = 0
 	list.ScrollBarThickness = 6
@@ -334,8 +334,8 @@ do
 
 	local list = Instance.new("ScrollingFrame")
 	list.Parent = t
-	list.Position = UDim2.fromOffset(2, 0)
-	list.Size = UDim2.new(1, -4, 0, 140)
+	list.Position = UDim2.fromOffset(0, 0)
+	list.Size = UDim2.new(1, 0, 0, 150)
 	list.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
 	list.BorderSizePixel = 0
 	list.ScrollBarThickness = 6
@@ -473,8 +473,8 @@ do
 
 	local list = Instance.new("ScrollingFrame")
 	list.Parent = t
-	list.Position = UDim2.fromOffset(2, 0)
-	list.Size = UDim2.new(1, -4, 0, 100)
+	list.Position = UDim2.fromOffset(0, 0)
+	list.Size = UDim2.new(1, 0, 0, 120)
 	list.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
 	list.BorderSizePixel = 0
 	list.ScrollBarThickness = 6
