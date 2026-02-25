@@ -1,9 +1,15 @@
 # AbyssRoblox
-If you somehow find this feel free to use these scripts for your own quality of life features
+If you somehow find this feel free to use these scripts for your own quality of life features.
 
-sellAll.lua: Sells all inventory after equipping loadout 4.
-portableStash.lua: Deposits and withdraws fish with weight-based ordering.
-artifactSets.lua: Equips weight, damage, or speed artifact loadouts.
-antiAfk.lua: Sends a periodic key press to prevent AFK.
-artifactScanner.lua: Returns a sorted list of artifact names from the library.
-abyss_QoL_gui.lua: Tabbed GUI that loads and calls the other scripts via loadstring.
+## Files
+| File | Description |
+| --- | --- |
+| `sellAll.lua` | Sells all inventory after equipping loadout 4. |
+| `portableStash.lua` | Deposits and withdraws fish with weight-based ordering. |
+| `artifactSets.lua` | Equips weight, damage, or speed artifact loadouts. |
+| `antiAfk.lua` | Sends a periodic key press to prevent AFK. |
+| `artifactScanner.lua` | Returns a sorted list of artifact names from the library. |
+| `artifactAutoDelete.lua` | Enables or disables auto-delete for a selected artifact. |
+| `fishAutoDelete.lua` | Manages fish name auto-delete with toggle and cache watchers. |
+| `abyss_UpdateArtifacts.lua` | Updates each artifact set with the best matching stats. |
+| `abyss_QoL_gui.lua` | Tabbed GUI that loads and calls the other scripts via loadstring. |

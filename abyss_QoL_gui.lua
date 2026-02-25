@@ -4,6 +4,7 @@ local lp = Players.LocalPlayer
 local pg = lp:WaitForChild("PlayerGui")
 
 local BASE = "https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/"
+local SAVE_PATH = "abyss_fish_autodelete.txt"
 
 local function loadModule(name)
 	local src = game:HttpGet(BASE .. name .. ".lua")
@@ -16,8 +17,12 @@ local portableStash = loadModule("portableStash")
 local artifactSets = loadModule("artifactSets")
 local antiAfk = loadModule("antiAfk")
 local artifactScanner = loadModule("artifactScanner")
+local updateArtifacts = loadModule("abyss_UpdateArtifacts")
+local autoDelete = loadModule("artifactAutoDelete")
+local fishAutoDelete = loadModule("fishAutoDelete")
 
 portableStash.init()
+fishAutoDelete.init()
 
 local old = pg:FindFirstChild("AbyssQoLGui")
 if old then old:Destroy() end
@@ -29,49 +34,75 @@ sg.Parent = pg
 
 local frame = Instance.new("Frame")
 frame.Parent = sg
-frame.Size = UDim2.fromOffset(440, 320)
-frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.Size = UDim2.fromOffset(500, 360)
+frame.BackgroundColor3 = Color3.fromRGB(28, 28, 32)
 frame.Active = true
 frame.Draggable = true
 frame.Position = UDim2.fromOffset(100, 100)
 frame.BorderSizePixel = 0
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
 
-local function tabButton(text, x)
+local function tabButton(parent, text)
 	local b = Instance.new("TextButton")
-	b.Parent = frame
-	b.Position = UDim2.fromOffset(x, 10)
-	b.Size = UDim2.fromOffset(130, 26)
+	b.Parent = parent
+	b.Size = UDim2.new(1, 0, 1, 0)
 	b.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
 	b.Font = Enum.Font.GothamSemibold
 	b.TextSize = 12
 	b.TextColor3 = Color3.fromRGB(240, 240, 240)
 	b.Text = text
 	b.BorderSizePixel = 0
+	Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
 	return b
 end
 
 local function makeTabContainer()
 	local t = Instance.new("Frame")
 	t.Parent = frame
-	t.Position = UDim2.fromOffset(10, 46)
-	t.Size = UDim2.fromOffset(420, 264)
-	t.BackgroundColor3 = Color3.fromRGB(30, 30, 36)
+	t.Position = UDim2.fromOffset(10, 48)
+	t.Size = UDim2.fromOffset(480, 302)
+	t.BackgroundColor3 = Color3.fromRGB(34, 34, 40)
 	t.BorderSizePixel = 0
 	t.Visible = false
+	Instance.new("UICorner", t).CornerRadius = UDim.new(0, 8)
+
+	local pad = Instance.new("UIPadding", t)
+	pad.PaddingTop = UDim.new(0, 10)
+	pad.PaddingBottom = UDim.new(0, 10)
+	pad.PaddingLeft = UDim.new(0, 10)
+	pad.PaddingRight = UDim.new(0, 10)
+
+	local list = Instance.new("UIListLayout", t)
+	list.Padding = UDim.new(0, 10)
+
 	return t
 end
 
-local function btn(parent, text, x, y, w, c)
+local function makeRow(parent, columns, height)
+	local row = Instance.new("Frame")
+	row.Parent = parent
+	row.Size = UDim2.new(1, 0, 0, height)
+	row.BackgroundTransparency = 1
+
+	local grid = Instance.new("UIGridLayout", row)
+	local pad = 8
+	local xOffset = (columns == 1) and 0 or -pad
+	grid.CellPadding = UDim2.fromOffset(pad, 0)
+	grid.CellSize = UDim2.new(1 / columns, xOffset, 1, 0)
+
+	return row
+end
+
+local function makeButton(parent, text, color)
 	local b = Instance.new("TextButton")
 	b.Parent = parent
-	b.Position = UDim2.fromOffset(x, y)
-	b.Size = UDim2.fromOffset(w, 34)
-	b.BackgroundColor3 = c
+	b.BackgroundColor3 = color
 	b.Font = Enum.Font.GothamSemibold
 	b.TextSize = 13
 	b.TextColor3 = Color3.fromRGB(240, 240, 240)
 	b.Text = text
 	b.BorderSizePixel = 0
+	Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
 	return b
 end
 
@@ -87,9 +118,19 @@ local function showTab(name)
 	end
 end
 
-local tabArtifacts = tabButton("Artifacts", 10)
-local tabCleanup = tabButton("Deletion / Clean Up", 155)
-local tabMisc = tabButton("Misc", 300)
+local tabBar = Instance.new("Frame")
+tabBar.Parent = frame
+tabBar.Position = UDim2.fromOffset(10, 10)
+tabBar.Size = UDim2.new(1, -20, 0, 28)
+tabBar.BackgroundTransparency = 1
+
+local tabGrid = Instance.new("UIGridLayout", tabBar)
+tabGrid.CellPadding = UDim2.fromOffset(8, 0)
+tabGrid.CellSize = UDim2.new(1 / 3, -8, 1, 0)
+
+local tabArtifacts = tabButton(tabBar, "Artifacts")
+local tabCleanup = tabButton(tabBar, "Deletion / Clean Up")
+local tabMisc = tabButton(tabBar, "Misc")
 
 tabArtifacts.MouseButton1Click:Connect(function() showTab("Artifacts") end)
 tabCleanup.MouseButton1Click:Connect(function() showTab("Deletion / Clean Up") end)
@@ -98,25 +139,30 @@ tabMisc.MouseButton1Click:Connect(function() showTab("Misc") end)
 -- Artifacts tab
 do
 	local t = tabs["Artifacts"]
-	btn(t, "Weight Set", 10, 10, 120, Color3.fromRGB(90, 110, 160)).MouseButton1Click:Connect(
+
+	local row1 = makeRow(t, 3, 34)
+	makeButton(row1, "Weight Set", Color3.fromRGB(90, 110, 160)).MouseButton1Click:Connect(
 		function() artifactSets.equipWeightSet() end
 	)
-	btn(t, "Damage Set", 140, 10, 120, Color3.fromRGB(160, 110, 90)).MouseButton1Click:Connect(
+	makeButton(row1, "Damage Set", Color3.fromRGB(160, 110, 90)).MouseButton1Click:Connect(
 		function() artifactSets.equipDamageSet() end
 	)
-	btn(t, "Speed Set", 270, 10, 120, Color3.fromRGB(80, 130, 90)).MouseButton1Click:Connect(
+	makeButton(row1, "Speed Set", Color3.fromRGB(80, 130, 90)).MouseButton1Click:Connect(
 		function() artifactSets.equipSpeedSet() end
 	)
 
-	local scanBtn = btn(t, "Scan Artifacts", 10, 54, 160, Color3.fromRGB(70, 94, 138))
+	local row2 = makeRow(t, 1, 34)
+	makeButton(row2, "Update Sets", Color3.fromRGB(70, 94, 138)).MouseButton1Click:Connect(
+		function() updateArtifacts.updateAllSets() end
+	)
 
 	local list = Instance.new("ScrollingFrame")
 	list.Parent = t
-	list.Position = UDim2.fromOffset(10, 96)
-	list.Size = UDim2.fromOffset(400, 150)
-	list.BackgroundColor3 = Color3.fromRGB(34, 34, 40)
+	list.Size = UDim2.new(1, 0, 0, 170)
+	list.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
 	list.BorderSizePixel = 0
 	list.ScrollBarThickness = 6
+	Instance.new("UICorner", list).CornerRadius = UDim.new(0, 8)
 
 	local lo = Instance.new("UIListLayout", list)
 	lo.Padding = UDim.new(0, 4)
@@ -127,15 +173,125 @@ do
 	pd.PaddingLeft = UDim.new(0, 6)
 	pd.PaddingRight = UDim.new(0, 6)
 
-	local function clearList()
-		for _, child in ipairs(list:GetChildren()) do
-			if child:IsA("TextLabel") then child:Destroy() end
+	local sel, rows = nil, {}
+	local function paint()
+		for name, b in pairs(rows) do
+			if b.Parent then
+				b.BackgroundColor3 = (name == sel and Color3.fromRGB(70, 94, 138) or Color3.fromRGB(45, 45, 54))
+			end
 		end
+	end
+
+	local function clearList()
+		for _, b in pairs(rows) do
+			if b.Parent then b:Destroy() end
+		end
+		rows = {}
 	end
 
 	local function populateArtifacts()
 		clearList()
 		local names = artifactScanner.scanArtifactNames()
+		for i = 1, #names do
+			local name = names[i]
+			local b = Instance.new("TextButton")
+			b.Parent = list
+			b.Size = UDim2.new(1, -8, 0, 24)
+			b.Text = name
+			b.TextXAlignment = Enum.TextXAlignment.Left
+			b.Font = Enum.Font.Gotham
+			b.TextSize = 13
+			b.TextColor3 = Color3.new(1, 1, 1)
+			b.BackgroundColor3 = Color3.fromRGB(45, 45, 54)
+			b.BorderSizePixel = 0
+			Instance.new("UICorner", b).CornerRadius = UDim.new(0, 5)
+			local p = Instance.new("UIPadding", b)
+			p.PaddingLeft = UDim.new(0, 8)
+
+			b.MouseButton1Click:Connect(function()
+				sel = name
+				paint()
+			end)
+			rows[name] = b
+		end
+
+		task.defer(function()
+			list.CanvasSize = UDim2.new(0, 0, 0, lo.AbsoluteContentSize.Y + 12)
+			paint()
+		end)
+	end
+
+	populateArtifacts()
+
+	local row3 = makeRow(t, 2, 34)
+	makeButton(row3, "Enable Delete", Color3.fromRGB(58, 120, 66)).MouseButton1Click:Connect(
+		function()
+			if not sel then return end
+			autoDelete.setAutoDelete(sel, true)
+		end
+	)
+	makeButton(row3, "Disable Delete", Color3.fromRGB(120, 62, 62)).MouseButton1Click:Connect(
+		function()
+			if not sel then return end
+			autoDelete.setAutoDelete(sel, false)
+		end
+	)
+end
+
+-- Deletion / Clean Up tab
+do
+	local t = tabs["Deletion / Clean Up"]
+	local row1 = makeRow(t, 2, 34)
+	makeButton(row1, "Deposit", Color3.fromRGB(46, 140, 87)).MouseButton1Click:Connect(
+		function()
+			portableStash.rebuildHotbarFishCache()
+			portableStash.depositFishByWeightDesc()
+		end
+	)
+	makeButton(row1, "Withdraw", Color3.fromRGB(150, 62, 62)).MouseButton1Click:Connect(
+		function() portableStash.withdrawAll() end
+	)
+
+	local row2 = makeRow(t, 2, 34)
+	local toggleBtn = makeButton(row2, "Auto Delete: OFF", Color3.fromRGB(95, 95, 95))
+	local clearBtn = makeButton(row2, "Clear List", Color3.fromRGB(120, 62, 62))
+
+	local inputRow = makeRow(t, 2, 34)
+	local nameBox = Instance.new("TextBox")
+	nameBox.Parent = inputRow
+	nameBox.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
+	nameBox.Font = Enum.Font.Gotham
+	nameBox.TextSize = 13
+	nameBox.TextColor3 = Color3.new(1, 1, 1)
+	nameBox.PlaceholderText = "Fish name..."
+	nameBox.ClearTextOnFocus = false
+	nameBox.BorderSizePixel = 0
+	Instance.new("UICorner", nameBox).CornerRadius = UDim.new(0, 6)
+
+	local addBtn = makeButton(inputRow, "Add", Color3.fromRGB(58, 120, 66))
+
+	local list = Instance.new("ScrollingFrame")
+	list.Parent = t
+	list.Size = UDim2.new(1, 0, 0, 170)
+	list.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
+	list.BorderSizePixel = 0
+	list.ScrollBarThickness = 6
+	Instance.new("UICorner", list).CornerRadius = UDim.new(0, 8)
+
+	local lo = Instance.new("UIListLayout", list)
+	lo.Padding = UDim.new(0, 4)
+
+	local pd = Instance.new("UIPadding", list)
+	pd.PaddingTop = UDim.new(0, 6)
+	pd.PaddingBottom = UDim.new(0, 6)
+	pd.PaddingLeft = UDim.new(0, 6)
+	pd.PaddingRight = UDim.new(0, 6)
+
+	local function refreshList()
+		for _, child in ipairs(list:GetChildren()) do
+			if child:IsA("TextLabel") then child:Destroy() end
+		end
+		local names = fishAutoDelete.getNames()
 		for i = 1, #names do
 			local label = Instance.new("TextLabel")
 			label.Parent = list
@@ -147,7 +303,6 @@ do
 			label.TextColor3 = Color3.fromRGB(240, 240, 240)
 			label.TextXAlignment = Enum.TextXAlignment.Left
 			label.Text = names[i]
-
 			local lp = Instance.new("UIPadding", label)
 			lp.PaddingLeft = UDim.new(0, 6)
 		end
@@ -156,31 +311,67 @@ do
 		end)
 	end
 
-	scanBtn.MouseButton1Click:Connect(populateArtifacts)
-end
-
--- Deletion / Clean Up tab
-do
-	local t = tabs["Deletion / Clean Up"]
-	btn(t, "Deposit", 10, 10, 120, Color3.fromRGB(46, 140, 87)).MouseButton1Click:Connect(
-		function()
-			portableStash.rebuildHotbarFishCache()
-			portableStash.depositFishByWeightDesc()
+	local function setToggleVisual(on)
+		if on then
+			toggleBtn.Text = "Auto Delete: ON"
+			toggleBtn.BackgroundColor3 = Color3.fromRGB(55, 145, 85)
+		else
+			toggleBtn.Text = "Auto Delete: OFF"
+			toggleBtn.BackgroundColor3 = Color3.fromRGB(95, 95, 95)
 		end
-	)
-	btn(t, "Withdraw", 140, 10, 120, Color3.fromRGB(150, 62, 62)).MouseButton1Click:Connect(
-		function() portableStash.withdrawAll() end
-	)
+	end
+
+	toggleBtn.MouseButton1Click:Connect(function()
+		local on = not fishAutoDelete.getEnabled()
+		fishAutoDelete.setEnabled(on)
+		setToggleVisual(on)
+	end)
+
+	addBtn.MouseButton1Click:Connect(function()
+		local name = nameBox.Text
+		name = name:gsub("^%s+", ""):gsub("%s+$", "")
+		if name == "" then return end
+		if fishAutoDelete.addName(name) then
+			nameBox.Text = ""
+			refreshList()
+		end
+	end)
+
+	clearBtn.MouseButton1Click:Connect(function()
+		fishAutoDelete.clearNames()
+		refreshList()
+	end)
+
+	local function loadSavedFishNames()
+		if isfile and readfile and isfile(SAVE_PATH) then
+			local ok, data = pcall(readfile, SAVE_PATH)
+			if ok and type(data) == "string" then
+				local list = {}
+				for line in data:gmatch("[^\r\n]+") do
+					local s = line:gsub("^%s+", ""):gsub("%s+$", "")
+					if s ~= "" then list[#list + 1] = s end
+				end
+				if #list > 0 then
+					fishAutoDelete.setNames(list)
+				end
+			end
+		end
+	end
+
+	loadSavedFishNames()
+	setToggleVisual(fishAutoDelete.getEnabled())
+	refreshList()
 end
 
 -- Misc tab
 do
 	local t = tabs["Misc"]
-	btn(t, "Sell All", 10, 10, 120, Color3.fromRGB(136, 108, 168)).MouseButton1Click:Connect(
+	local row1 = makeRow(t, 2, 34)
+	makeButton(row1, "Sell All", Color3.fromRGB(136, 108, 168)).MouseButton1Click:Connect(
 		function() sellAll.sellAll() end
 	)
 
-	local antiBtn = btn(t, "Anti AFK: OFF", 140, 10, 160, Color3.fromRGB(95, 95, 95))
+	local antiBtn = makeButton(row1, "Anti AFK: OFF", Color3.fromRGB(95, 95, 95))
 	local antiOn = false
 	antiBtn.MouseButton1Click:Connect(function()
 		antiOn = not antiOn
@@ -192,6 +383,15 @@ do
 			antiBtn.Text = "Anti AFK: OFF"
 			antiBtn.BackgroundColor3 = Color3.fromRGB(95, 95, 95)
 			antiAfk.stop()
+		end
+	end)
+
+	local row2 = makeRow(t, 1, 34)
+	makeButton(row2, "Save Settings", Color3.fromRGB(70, 94, 138)).MouseButton1Click:Connect(function()
+		if writefile then
+			local names = fishAutoDelete.getNames()
+			local data = table.concat(names, "\n")
+			pcall(writefile, SAVE_PATH, data)
 		end
 	end)
 end
