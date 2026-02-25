@@ -1,10 +1,11 @@
 local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
 
 local lp = Players.LocalPlayer
 local pg = lp:WaitForChild("PlayerGui")
 
 local BASE = "https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/"
-local SAVE_PATH = "abyss_fish_autodelete.txt"
+local SAVE_PATH = "abyss_settings.json"
 
 local function loadModule(name)
 	local src = game:HttpGet(BASE .. name .. ".lua")
@@ -24,6 +25,11 @@ local fishAutoDelete = loadModule("fishAutoDelete")
 
 portableStash.init()
 fishAutoDelete.init()
+
+local antiOn = false
+local setAntiAfk
+local setFishToggleVisual
+local refreshFishList
 
 local old = pg:FindFirstChild("AbyssQoLGui")
 if old then old:Destroy() end
@@ -159,7 +165,7 @@ do
 
 	local list = Instance.new("ScrollingFrame")
 	list.Parent = t
-	list.Size = UDim2.new(1, 0, 0, 170)
+	list.Size = UDim2.new(1, 0, 0, 100)
 	list.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
 	list.BorderSizePixel = 0
 	list.ScrollBarThickness = 6
@@ -239,7 +245,8 @@ do
 	)
 
 	local row3 = makeRow(t, 2, 34)
-	makeButton(row3, "Enable Delete", Color3.fromRGB(58, 120, 66)).MouseButton1Click:Connect(
+	local enableDeleteBtn = makeButton(row3, "Enable Delete", Color3.fromRGB(58, 120, 66))
+	enableDeleteBtn.MouseButton1Click:Connect(
 		function()
 			if not sel then return end
 			autoDelete.setAutoDelete(sel, true)
@@ -247,7 +254,8 @@ do
 			paint()
 		end
 	)
-	makeButton(row3, "Disable Delete", Color3.fromRGB(120, 62, 62)).MouseButton1Click:Connect(
+	local disableDeleteBtn = makeButton(row3, "Disable Delete", Color3.fromRGB(120, 62, 62))
+	disableDeleteBtn.MouseButton1Click:Connect(
 		function()
 			if not sel then return end
 			autoDelete.setAutoDelete(sel, false)
@@ -255,6 +263,25 @@ do
 			paint()
 		end
 	)
+
+	local function applyArtifactAutoDeleteList(list)
+		for i = 1, #list do
+			local name = list[i]
+			autoDelete.setAutoDelete(name, true)
+			autoDeleteEnabled[name] = true
+		end
+		paint()
+	end
+
+	t._applyArtifactAutoDeleteList = applyArtifactAutoDeleteList
+	t._getArtifactAutoDeleteList = function()
+		local out = {}
+		for name in pairs(autoDeleteEnabled) do
+			out[#out + 1] = name
+		end
+		table.sort(out)
+		return out
+	end
 end
 
 -- Deletion / Clean Up tab
@@ -292,7 +319,7 @@ do
 
 	local list = Instance.new("ScrollingFrame")
 	list.Parent = t
-	list.Size = UDim2.new(1, 0, 0, 170)
+	list.Size = UDim2.new(1, 0, 0, 140)
 	list.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
 	list.BorderSizePixel = 0
 	list.ScrollBarThickness = 6
@@ -330,6 +357,7 @@ do
 			list.CanvasSize = UDim2.new(0, 0, 0, lo.AbsoluteContentSize.Y + 12)
 		end)
 	end
+	refreshFishList = refreshList
 
 	local function setToggleVisual(on)
 		if on then
@@ -340,6 +368,7 @@ do
 			toggleBtn.BackgroundColor3 = Color3.fromRGB(95, 95, 95)
 		end
 	end
+	setFishToggleVisual = setToggleVisual
 
 	toggleBtn.MouseButton1Click:Connect(function()
 		local on = not fishAutoDelete.getEnabled()
@@ -362,23 +391,6 @@ do
 		refreshList()
 	end)
 
-	local function loadSavedFishNames()
-		if isfile and readfile and isfile(SAVE_PATH) then
-			local ok, data = pcall(readfile, SAVE_PATH)
-			if ok and type(data) == "string" then
-				local list = {}
-				for line in data:gmatch("[^\r\n]+") do
-					local s = line:gsub("^%s+", ""):gsub("%s+$", "")
-					if s ~= "" then list[#list + 1] = s end
-				end
-				if #list > 0 then
-					fishAutoDelete.setNames(list)
-				end
-			end
-		end
-	end
-
-	loadSavedFishNames()
 	setToggleVisual(fishAutoDelete.getEnabled())
 	refreshList()
 end
@@ -392,9 +404,8 @@ do
 	)
 
 	local antiBtn = makeButton(row1, "Anti AFK: OFF", Color3.fromRGB(95, 95, 95))
-	local antiOn = false
-	antiBtn.MouseButton1Click:Connect(function()
-		antiOn = not antiOn
+	setAntiAfk = function(on)
+		antiOn = on == true
 		if antiOn then
 			antiBtn.Text = "Anti AFK: ON"
 			antiBtn.BackgroundColor3 = Color3.fromRGB(55, 145, 85)
@@ -404,16 +415,76 @@ do
 			antiBtn.BackgroundColor3 = Color3.fromRGB(95, 95, 95)
 			antiAfk.stop()
 		end
+	end
+	antiBtn.MouseButton1Click:Connect(function()
+		setAntiAfk(not antiOn)
 	end)
 
 	local row2 = makeRow(t, 1, 34)
 	makeButton(row2, "Save Settings", Color3.fromRGB(70, 94, 138)).MouseButton1Click:Connect(function()
-		if writefile then
-			local names = fishAutoDelete.getNames()
-			local data = table.concat(names, "\n")
+		if not writefile then return end
+		local payload = {
+			fishNames = fishAutoDelete.getNames(),
+			fishEnabled = fishAutoDelete.getEnabled(),
+			antiAfk = antiOn,
+			artifactAutoDelete = tabs["Artifacts"]._getArtifactAutoDeleteList
+				and tabs["Artifacts"]._getArtifactAutoDeleteList()
+				or {},
+		}
+		local ok, data = pcall(function() return HttpService:JSONEncode(payload) end)
+		if ok and type(data) == "string" then
 			pcall(writefile, SAVE_PATH, data)
 		end
 	end)
 end
+
+local function loadSavedSettings()
+	if not (isfile and readfile and isfile(SAVE_PATH)) then return end
+	local ok, data = pcall(readfile, SAVE_PATH)
+	if not ok or type(data) ~= "string" then return end
+
+	local decoded
+	local okDecode = pcall(function()
+		decoded = HttpService:JSONDecode(data)
+	end)
+
+	if okDecode and type(decoded) == "table" then
+		if type(decoded.fishNames) == "table" then
+			fishAutoDelete.setNames(decoded.fishNames)
+		end
+		if decoded.fishEnabled ~= nil then
+			fishAutoDelete.setEnabled(decoded.fishEnabled == true)
+		end
+		if setFishToggleVisual then
+			setFishToggleVisual(fishAutoDelete.getEnabled())
+		end
+		if refreshFishList then
+			refreshFishList()
+		end
+		if type(decoded.artifactAutoDelete) == "table" then
+			local t = tabs["Artifacts"]
+			if t._applyArtifactAutoDeleteList then
+				t._applyArtifactAutoDeleteList(decoded.artifactAutoDelete)
+			end
+		end
+		if setAntiAfk and decoded.antiAfk ~= nil then
+			setAntiAfk(decoded.antiAfk == true)
+		end
+	else
+		local list = {}
+		for line in data:gmatch("[^\r\n]+") do
+			local s = line:gsub("^%s+", ""):gsub("%s+$", "")
+			if s ~= "" then list[#list + 1] = s end
+		end
+		if #list > 0 then
+			fishAutoDelete.setNames(list)
+		end
+		if refreshFishList then
+			refreshFishList()
+		end
+	end
+end
+
+loadSavedSettings()
 
 showTab("Artifacts")
