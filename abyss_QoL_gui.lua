@@ -456,10 +456,22 @@ do
 
 	local row2 = makeRow(t, 2, 34)
 	local shopToggleBtn = makeButton(row2, "Shop Buyer: OFF", Color3.fromRGB(95, 95, 95))
-	local openGeodeBtn = makeButton(row2, "Open Geode", Color3.fromRGB(90, 110, 160))
+	local openGeodeBtn = makeButton(row2, "Open Geode: OFF", Color3.fromRGB(95, 95, 95))
+	local function setGeodeToggleVisual(on)
+		if on then
+			openGeodeBtn.Text = "Open Geode: ON"
+			openGeodeBtn.BackgroundColor3 = Color3.fromRGB(55, 145, 85)
+		else
+			openGeodeBtn.Text = "Open Geode: OFF"
+			openGeodeBtn.BackgroundColor3 = Color3.fromRGB(95, 95, 95)
+		end
+	end
 	openGeodeBtn.MouseButton1Click:Connect(function()
-		geodeOpener.openGeode()
+		local on = not geodeOpener.getEnabled()
+		geodeOpener.setEnabled(on)
+		setGeodeToggleVisual(on)
 	end)
+	setGeodeToggleVisual(geodeOpener.getEnabled())
 
 	local inputRow = makeRow(t, 3, 34)
 	local itemBox = Instance.new("TextBox")

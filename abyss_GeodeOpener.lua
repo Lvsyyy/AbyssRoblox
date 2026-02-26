@@ -125,6 +125,38 @@ local function openGeode()
 	end
 end
 
+local enabled = false
+local running = false
+local stopFlag = false
+
+local function startLoop()
+	if running then return end
+	running = true
+	stopFlag = false
+	task.spawn(function()
+		while not stopFlag do
+			if enabled then
+				pcall(openGeode)
+			end
+			task.wait(30)
+		end
+		running = false
+	end)
+end
+
+local function setEnabled(v)
+	enabled = v == true
+	if enabled then
+		startLoop()
+	end
+end
+
+local function getEnabled()
+	return enabled
+end
+
 return {
 	openGeode = openGeode,
+	setEnabled = setEnabled,
+	getEnabled = getEnabled,
 }
