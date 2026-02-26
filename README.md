@@ -24,3 +24,9 @@ If you use this inside a public script / hub do not obfuscate it support Open So
 ```lua
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/abyss_QoL_gui.lua"))()
 ```
+
+
+## Preview
+<img width="503" height="361" alt="image" src="https://github.com/user-attachments/assets/eff87dbc-f3e3-4c55-b77b-e255e32326fb" />
+<img width="500" height="364" alt="image" src="https://github.com/user-attachments/assets/3c20c2b5-3f67-4f2d-8dba-e28a7b0c27d0" />
+<img width="502" height="363" alt="image" src="https://github.com/user-attachments/assets/1b64276e-f08d-45c9-8d81-0317e6cfc265" />
