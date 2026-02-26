@@ -33,17 +33,25 @@ end
 -- =========================
 -- Backpack cache
 -- =========================
-local function addBackpackFish(inst)
-	if inst.ClassName ~= "Frame" or inst:GetAttribute("class") ~= "fish" then return end
+local function isFishFrame(inst)
+	if inst.ClassName ~= "Frame" then return false end
 	local id = inst:GetAttribute("id")
-	if not isFishId(id) then return end
+	if not isFishId(id) then return false end
+	local cls = inst:GetAttribute("class")
+	if cls == "fish" then return true end
+	local w = inst:GetAttribute("weight")
+	return type(w) == "number"
+end
+
+local function addBackpackFish(inst)
+	if not isFishFrame(inst) then return end
+	local id = inst:GetAttribute("id")
 	backpackFishWeights[id] = inst:GetAttribute("weight") or 0
 end
 
 local function removeBackpackFish(inst)
-	if inst.ClassName ~= "Frame" or inst:GetAttribute("class") ~= "fish" then return end
+	if not isFishFrame(inst) then return end
 	local id = inst:GetAttribute("id")
-	if not isFishId(id) then return end
 	backpackFishWeights[id] = nil
 end
 
@@ -64,9 +72,9 @@ local function rebuildHotbarFishCache()
 	local kids = hotbarRoot:GetChildren()
 	for i = 1, #kids do
 		local slot = kids[i]
-		if slot.ClassName == "Frame" and tonumber(slot.Name) and slot:GetAttribute("class") == "fish" then
+		if slot.ClassName == "Frame" and tonumber(slot.Name) then
 			local id = slot:GetAttribute("id")
-			if isFishId(id) then
+			if isFishId(id) and (slot:GetAttribute("class") == "fish" or type(slot:GetAttribute("weight")) == "number") then
 				hotbarFishWeights[id] = slot:GetAttribute("weight") or 0
 			end
 		end
