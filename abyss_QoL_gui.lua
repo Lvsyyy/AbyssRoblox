@@ -23,6 +23,7 @@ local updateArtifacts = loadModule("abyss_UpdateArtifacts")
 local deleteBadArtifacts = loadModule("abyss_DeleteBadArtifacts")
 local autoDelete = loadModule("artifactAutoDelete")
 local fishAutoDelete = loadModule("fishAutoDelete")
+local geodeOpener = loadModule("abyss_GeodeOpener")
 
 portableStash.init()
 fishAutoDelete.init()
@@ -124,6 +125,7 @@ local function makeButton(parent, text, color)
 	Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
 	return b
 end
+
 
 local tabs = {
 	Artifacts = makeTabContainer(),
@@ -454,9 +456,12 @@ do
 
 	local row2 = makeRow(t, 2, 34)
 	local shopToggleBtn = makeButton(row2, "Shop Buyer: OFF", Color3.fromRGB(95, 95, 95))
-	local shopClearBtn = makeButton(row2, "Clear List", Color3.fromRGB(120, 62, 62))
+	local openGeodeBtn = makeButton(row2, "Open Geode", Color3.fromRGB(90, 110, 160))
+	openGeodeBtn.MouseButton1Click:Connect(function()
+		geodeOpener.openGeode()
+	end)
 
-	local inputRow = makeRow(t, 2, 34)
+	local inputRow = makeRow(t, 3, 34)
 	local itemBox = Instance.new("TextBox")
 	itemBox.Parent = inputRow
 	itemBox.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
@@ -470,6 +475,7 @@ do
 	Instance.new("UICorner", itemBox).CornerRadius = UDim.new(0, 6)
 
 	local addBtn = makeButton(inputRow, "Add", Color3.fromRGB(58, 120, 66))
+	local shopClearBtn = makeButton(inputRow, "Clear List", Color3.fromRGB(120, 62, 62))
 
 	local list = Instance.new("ScrollingFrame")
 	list.Parent = t

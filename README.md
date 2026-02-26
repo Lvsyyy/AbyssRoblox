@@ -16,6 +16,7 @@ Game: https://www.roblox.com/games/127794225497302/Abyss
 | `shopBuyer.lua` | Auto-buys selected merchant items on a loop. |
 | `abyss_UpdateArtifacts.lua` | Updates each artifact set with the best matching stats. |
 | `abyss_DeleteBadArtifacts.lua` | Deletes non-protected artifacts not in the top 3 of each category. |
+| `abyss_GeodeOpener.lua` | Opens Coconut geodes up to 99 based on backpack/hotbar count; falls back to Rooted. |
 | `abyss_QoL_gui.lua` | Tabbed GUI that loads and calls the other scripts via loadstring. |
 | `test_DeleteBadArtifacts.lua` | Prints what would be deleted (no deletes) for verification. |
 
