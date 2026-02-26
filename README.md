@@ -1,5 +1,6 @@
 # AbyssRoblox
-If you somehow find this feel free to use these scripts for your own quality of life features.
+If you somehow find this feel free to use these scripts for your own quality of life.
+If you use this inside a public script / hub do not obfuscate it support Open Source don't be a skid.
 
 ## [Roblox Abyss](https://www.roblox.com/games/127794225497302/Abyss)
 
