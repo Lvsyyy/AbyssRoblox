@@ -37,6 +37,7 @@ local applyArtifactAutoDeleteList
 local getArtifactAutoDeleteList
 local setShopToggleVisual
 local refreshShopList
+local setGeodeToggleVisual
 
 local old = pg:FindFirstChild("AbyssQoLGui")
 if old then old:Destroy() end
@@ -448,6 +449,7 @@ do
 			artifactAutoDelete = getArtifactAutoDeleteList and getArtifactAutoDeleteList() or {},
 			shopItems = shopBuyer.getItems(),
 			shopEnabled = shopBuyer.getEnabled(),
+			geodeEnabled = geodeOpener.getEnabled(),
 		}
 		local ok, data = pcall(function() return HttpService:JSONEncode(payload) end)
 		if ok and type(data) == "string" then
@@ -458,7 +460,7 @@ do
 	local row2 = makeRow(t, 2, 34)
 	local shopToggleBtn = makeButton(row2, "Shop Buyer: OFF", Color3.fromRGB(95, 95, 95))
 	local openGeodeBtn = makeButton(row2, "Open Geode: OFF", Color3.fromRGB(95, 95, 95))
-	local function setGeodeToggleVisual(on)
+	local function setGeodeToggleVisualImpl(on)
 		if on then
 			openGeodeBtn.Text = "Open Geode: ON"
 			openGeodeBtn.BackgroundColor3 = Color3.fromRGB(55, 145, 85)
@@ -470,9 +472,10 @@ do
 	openGeodeBtn.MouseButton1Click:Connect(function()
 		local on = not geodeOpener.getEnabled()
 		geodeOpener.setEnabled(on)
-		setGeodeToggleVisual(on)
+		setGeodeToggleVisualImpl(on)
 	end)
-	setGeodeToggleVisual(geodeOpener.getEnabled())
+	setGeodeToggleVisual = setGeodeToggleVisualImpl
+	setGeodeToggleVisualImpl(geodeOpener.getEnabled())
 
 	local inputRow = makeRow(t, 3, 34)
 	local itemBox = Instance.new("TextBox")
@@ -604,8 +607,14 @@ local function loadSavedSettings()
 		if decoded.shopEnabled ~= nil then
 			shopBuyer.setEnabled(decoded.shopEnabled == true)
 		end
+		if decoded.geodeEnabled ~= nil then
+			geodeOpener.setEnabled(decoded.geodeEnabled == true)
+		end
 		if setShopToggleVisual then
 			setShopToggleVisual(shopBuyer.getEnabled())
+		end
+		if setGeodeToggleVisual then
+			setGeodeToggleVisual(geodeOpener.getEnabled())
 		end
 		if refreshShopList then
 			refreshShopList()

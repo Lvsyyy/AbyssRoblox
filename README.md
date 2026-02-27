@@ -18,13 +18,13 @@ If you use this inside a public script / hub do not obfuscate it support Open So
 | `abyss_UpdateArtifacts.lua` | Updates each artifact set with the best matching stats. |
 | `abyss_DeleteBadArtifacts.lua` | Deletes non-protected artifacts not in the top 3 of each category. |
 | `abyss_GeodeOpener.lua` | Opens Coconut geodes up to 99 based on backpack/hotbar count; falls back to Rooted. |
+| `abyss_AutoRejoin.lua` | Rejoins after kick/error prompt and re-executes the configured script on teleport. |
 | `abyss_QoL_gui.lua` | Tabbed GUI that loads and calls the other scripts via loadstring. |
 
 ## Run This
 ```lua
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/abyss_QoL_gui.lua"))()
 ```
-
 
 ## Preview
 <img width="503" height="361" alt="image" src="https://github.com/user-attachments/assets/eff87dbc-f3e3-4c55-b77b-e255e32326fb" />
