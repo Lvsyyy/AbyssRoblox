@@ -188,6 +188,48 @@ local function makeButton(parent, text, color)
 	return b
 end
 
+local function makeScrollingList(parent, height)
+	local list = Instance.new("ScrollingFrame")
+	list.Parent = parent
+	list.Position = UDim2.fromOffset(0, 0)
+	list.Size = UDim2.new(1, 0, 0, height)
+	list.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
+	list.BorderSizePixel = 0
+	list.ScrollBarThickness = 6
+	Instance.new("UICorner", list).CornerRadius = UDim.new(0, 8)
+
+	local layout = Instance.new("UIListLayout", list)
+	layout.Padding = UDim.new(0, 4)
+
+	local padding = Instance.new("UIPadding", list)
+	padding.PaddingTop = UDim.new(0, 6)
+	padding.PaddingBottom = UDim.new(0, 6)
+	padding.PaddingLeft = UDim.new(0, 6)
+	padding.PaddingRight = UDim.new(0, 6)
+
+	return list, layout
+end
+
+local function makeSelectableRow(parent, text, color, onClick)
+	local b = Instance.new("TextButton")
+	b.Parent = parent
+	b.Size = UDim2.new(1, -8, 0, 24)
+	b.Text = text
+	b.TextXAlignment = Enum.TextXAlignment.Left
+	b.Font = Enum.Font.Gotham
+	b.TextSize = 13
+	b.TextColor3 = Color3.new(1, 1, 1)
+	b.BackgroundColor3 = color
+	b.BorderSizePixel = 0
+	Instance.new("UICorner", b).CornerRadius = UDim.new(0, 5)
+	local p = Instance.new("UIPadding", b)
+	p.PaddingLeft = UDim.new(0, 8)
+	if onClick then
+		b.MouseButton1Click:Connect(onClick)
+	end
+	return b
+end
+
 local tabs = {
 	Artifacts = makeTabContainer(),
 	Deletion = makeTabContainer(),
@@ -233,23 +275,7 @@ do
 		function() deleteBadArtifacts.deleteBadArtifacts() end
 	)
 
-	local list = Instance.new("ScrollingFrame")
-	list.Parent = t
-	list.Position = UDim2.fromOffset(0, 0)
-	list.Size = UDim2.new(1, 0, 0, 150)
-	list.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
-	list.BorderSizePixel = 0
-	list.ScrollBarThickness = 6
-	Instance.new("UICorner", list).CornerRadius = UDim.new(0, 8)
-
-	local lo = Instance.new("UIListLayout", list)
-	lo.Padding = UDim.new(0, 4)
-
-	local pd = Instance.new("UIPadding", list)
-	pd.PaddingTop = UDim.new(0, 6)
-	pd.PaddingBottom = UDim.new(0, 6)
-	pd.PaddingLeft = UDim.new(0, 6)
-	pd.PaddingRight = UDim.new(0, 6)
+	local list, lo = makeScrollingList(t, 150)
 
 	local sel, rows = nil, {}
 	local autoDeleteEnabled = {}
@@ -284,21 +310,7 @@ do
 		end
 		for i = 1, #names do
 			local name = names[i]
-			local b = Instance.new("TextButton")
-			b.Parent = list
-			b.Size = UDim2.new(1, -8, 0, 24)
-			b.Text = name
-			b.TextXAlignment = Enum.TextXAlignment.Left
-			b.Font = Enum.Font.Gotham
-			b.TextSize = 13
-			b.TextColor3 = Color3.new(1, 1, 1)
-			b.BackgroundColor3 = rowColor(name)
-			b.BorderSizePixel = 0
-			Instance.new("UICorner", b).CornerRadius = UDim.new(0, 5)
-			local p = Instance.new("UIPadding", b)
-			p.PaddingLeft = UDim.new(0, 8)
-
-			b.MouseButton1Click:Connect(function()
+			local b = makeSelectableRow(list, name, rowColor(name), function()
 				sel = name
 				paint()
 			end)
@@ -373,23 +385,7 @@ do
 	local addBtn = makeButton(row2, "Add", BTN_GREEN)
 	local toggleBtn = makeButton(row2, "Auto Delete: OFF", BTN_RED)
 
-	local list = Instance.new("ScrollingFrame")
-	list.Parent = t
-	list.Position = UDim2.fromOffset(0, 0)
-	list.Size = UDim2.new(1, 0, 0, 150)
-	list.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
-	list.BorderSizePixel = 0
-	list.ScrollBarThickness = 6
-	Instance.new("UICorner", list).CornerRadius = UDim.new(0, 8)
-
-	local lo = Instance.new("UIListLayout", list)
-	lo.Padding = UDim.new(0, 4)
-
-	local pd = Instance.new("UIPadding", list)
-	pd.PaddingTop = UDim.new(0, 6)
-	pd.PaddingBottom = UDim.new(0, 6)
-	pd.PaddingLeft = UDim.new(0, 6)
-	pd.PaddingRight = UDim.new(0, 6)
+	local list, lo = makeScrollingList(t, 150)
 
 	local function refreshList()
 		for _, child in ipairs(list:GetChildren()) do
@@ -556,23 +552,7 @@ do
 	local enableBtn = makeButton(row1, "Enable Selected", BTN_GREEN)
 	local disableBtn = makeButton(row1, "Disable Selected", BTN_RED)
 
-	local list = Instance.new("ScrollingFrame")
-	list.Parent = t
-	list.Position = UDim2.fromOffset(0, 0)
-	list.Size = UDim2.new(1, 0, 0, 170)
-	list.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
-	list.BorderSizePixel = 0
-	list.ScrollBarThickness = 6
-	Instance.new("UICorner", list).CornerRadius = UDim.new(0, 8)
-
-	local lo = Instance.new("UIListLayout", list)
-	lo.Padding = UDim.new(0, 4)
-
-	local pd = Instance.new("UIPadding", list)
-	pd.PaddingTop = UDim.new(0, 6)
-	pd.PaddingBottom = UDim.new(0, 6)
-	pd.PaddingLeft = UDim.new(0, 6)
-	pd.PaddingRight = UDim.new(0, 6)
+	local list, lo = makeScrollingList(t, 170)
 
 	local selectedName
 	local rows = {}
@@ -610,21 +590,7 @@ do
 		local names = shopBuyer.getAvailableItems()
 		for i = 1, #names do
 			local name = names[i]
-			local b = Instance.new("TextButton")
-			b.Parent = list
-			b.Size = UDim2.new(1, -8, 0, 24)
-			b.Text = name
-			b.TextXAlignment = Enum.TextXAlignment.Left
-			b.Font = Enum.Font.Gotham
-			b.TextSize = 13
-			b.TextColor3 = Color3.new(1, 1, 1)
-			b.BackgroundColor3 = rowColor(name)
-			b.BorderSizePixel = 0
-			Instance.new("UICorner", b).CornerRadius = UDim.new(0, 5)
-			local p = Instance.new("UIPadding", b)
-			p.PaddingLeft = UDim.new(0, 8)
-
-			b.MouseButton1Click:Connect(function()
+			local b = makeSelectableRow(list, name, rowColor(name), function()
 				selectedName = name
 				paintRows()
 			end)
