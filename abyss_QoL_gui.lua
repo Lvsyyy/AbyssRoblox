@@ -47,6 +47,16 @@ local BTN_GREEN = Color3.fromRGB(46, 140, 87)
 local BTN_RED = Color3.fromRGB(150, 62, 62)
 local BTN_GRAY = Color3.fromRGB(95, 95, 95)
 
+local LIST_HEIGHT_OVERRIDES = {
+	Artifacts = nil,
+	Deletion = nil,
+	Shop = nil,
+}
+
+local TAB_CONTENT_HEIGHT = 302
+local TAB_PADDING_TOTAL = 20
+local TAB_ROW_GAP = 10
+
 local DailyClaimRF = KnitServices
 	:WaitForChild("DailyRewardService")
 	:WaitForChild("RF")
@@ -190,6 +200,20 @@ local function makeButton(parent, text, color)
 	return b
 end
 
+local function getListHeight(tabKey, rowHeights)
+	local override = LIST_HEIGHT_OVERRIDES[tabKey]
+	if type(override) == "number" and override > 0 then
+		return math.floor(override)
+	end
+	local rows = 0
+	for i = 1, #rowHeights do
+		rows = rows + rowHeights[i]
+	end
+	local gaps = #rowHeights
+	local auto = TAB_CONTENT_HEIGHT - TAB_PADDING_TOTAL - rows - (gaps * TAB_ROW_GAP)
+	return math.max(80, auto)
+end
+
 local function makeScrollingList(parent, height)
 	local list = Instance.new("ScrollingFrame")
 	list.Parent = parent
@@ -277,7 +301,7 @@ do
 		function() deleteBadArtifacts.deleteBadArtifacts() end
 	)
 
-	local list, lo = makeScrollingList(t, 150)
+	local list, lo = makeScrollingList(t, getListHeight("Artifacts", { 34, 34 }))
 
 	local sel, rows = nil, {}
 	local autoDeleteEnabled = {}
@@ -387,7 +411,7 @@ do
 	local addBtn = makeButton(row2, "Add", BTN_GREEN)
 	local toggleBtn = makeButton(row2, "Auto Delete: OFF", BTN_RED)
 
-	local list, lo = makeScrollingList(t, 150)
+	local list, lo = makeScrollingList(t, getListHeight("Deletion", { 34 }))
 	local selectedFish
 	local rows = {}
 	local enabledFish = {}
@@ -591,7 +615,7 @@ do
 	local enableBtn = makeButton(row1, "Enable Selected", BTN_GREEN)
 	local disableBtn = makeButton(row1, "Disable Selected", BTN_RED)
 
-	local list, lo = makeScrollingList(t, 170)
+	local list, lo = makeScrollingList(t, getListHeight("Shop", { 34 }))
 
 	local selectedName
 	local rows = {}

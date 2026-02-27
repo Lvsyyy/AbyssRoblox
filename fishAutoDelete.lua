@@ -21,6 +21,10 @@ local enabled = false
 local nameSet = {}
 local nameList = {}
 
+local function normalizeName(s)
+	return string.lower(s)
+end
+
 local backpackFishWeights, backpackFishNames = {}, {} -- [id]=weight/name
 local hotbarFishWeights, hotbarFishNames = {}, {}     -- [id]=weight/name
 
@@ -29,7 +33,16 @@ local function isFishId(v)
 end
 
 local function isTargetDeleteName(name)
-	return nameSet[name] == true
+	if type(name) ~= "string" or name == "" then
+		return false
+	end
+	local n = normalizeName(name)
+	for key in pairs(nameSet) do
+		if n:find(key, 1, true) then
+			return true
+		end
+	end
+	return false
 end
 
 local function addBackpackFish(inst)
@@ -157,9 +170,12 @@ local function setNames(list)
 	table.clear(nameList)
 	for i = 1, #list do
 		local name = list[i]
-		if name ~= "" and not nameSet[name] then
-			nameSet[name] = true
-			nameList[#nameList + 1] = name
+		if type(name) == "string" and name ~= "" then
+			local key = normalizeName(name)
+			if not nameSet[key] then
+				nameSet[key] = true
+				nameList[#nameList + 1] = name
+			end
 		end
 	end
 	if enabled then
@@ -168,8 +184,12 @@ local function setNames(list)
 end
 
 local function addName(name)
-	if name ~= "" and not nameSet[name] then
-		nameSet[name] = true
+	if type(name) == "string" and name ~= "" then
+		local key = normalizeName(name)
+		if nameSet[key] then
+			return false
+		end
+		nameSet[key] = true
 		nameList[#nameList + 1] = name
 		if enabled then
 			deleteAllTargetFish()
