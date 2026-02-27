@@ -13,6 +13,10 @@ local CONFIG = {
 	REEXEC_RETRY_DELAY = 3,
 }
 
+local IN_PROGRESS = Enum.TeleportState.InProgress
+local rejoinArmed = false
+local queuedThisTeleport = false
+
 local function runConfiguredScript()
 	if type(CONFIG.SCRIPT_URL) ~= "string" or CONFIG.SCRIPT_URL == "" then
 		return
@@ -31,42 +35,33 @@ local function runConfiguredScript()
 end
 
 local function queueScriptOnTeleport(code)
-	if type(queue_on_teleport) == "function" then
-		queue_on_teleport(code)
-		return true
-	end
-	if type(queueonteleport) == "function" then
-		queueonteleport(code)
-		return true
-	end
-	if syn and type(syn.queue_on_teleport) == "function" then
-		syn.queue_on_teleport(code)
-		return true
-	end
-	if fluxus and type(fluxus.queue_on_teleport) == "function" then
-		fluxus.queue_on_teleport(code)
-		return true
+	local funcs = {
+		queue_on_teleport,
+		queueonteleport,
+		syn and syn.queue_on_teleport,
+		syn and syn.queue_on_teleport,
+		fluxus and fluxus.queue_on_teleport,
+		KRNL_LOADED and getgenv and getgenv().queue_on_teleport,
+	}
+	for i = 1, #funcs do
+		local fn = funcs[i]
+		if type(fn) == "function" then
+			local ok = pcall(fn, code)
+			if ok then
+				return true
+			end
+		end
 	end
 	return false
 end
 
 local function buildReexecCode()
-	return ([[
-local url = %q
-local startDelay = %d
-local retries = %d
-local retryDelay = %d
-task.wait(startDelay)
-for i = 1, retries do
-	local ok = pcall(function()
-		loadstring(game:HttpGet(url))()
-	end)
-	if ok then
-		break
-	end
-	task.wait(retryDelay)
-end
-]]):format(CONFIG.SCRIPT_URL, CONFIG.REEXEC_DELAY, CONFIG.REEXEC_RETRIES, CONFIG.REEXEC_RETRY_DELAY)
+	return ("local u=%q local d=%d local r=%d local rd=%d task.wait(d) for i=1,r do local ok=pcall(function() loadstring(game:HttpGet(u))() end) if ok then break end task.wait(rd) end"):format(
+		CONFIG.SCRIPT_URL,
+		CONFIG.REEXEC_DELAY,
+		CONFIG.REEXEC_RETRIES,
+		CONFIG.REEXEC_RETRY_DELAY
+	)
 end
 
 task.spawn(function()
@@ -82,8 +77,13 @@ local rejoining = false
 local function rejoinNow()
 	if rejoining then return end
 	rejoining = true
+	rejoinArmed = true
+	queuedThisTeleport = false
 
 	local queued = queueScriptOnTeleport(buildReexecCode())
+	if queued then
+		queuedThisTeleport = true
+	end
 	task.wait(CONFIG.REJOIN_DELAY)
 
 	local options = Instance.new("TeleportOptions")
@@ -102,6 +102,15 @@ local function rejoinNow()
 		TeleportService:Teleport(game.PlaceId, lp)
 	end
 end
+
+lp.OnTeleport:Connect(function(state)
+	if not rejoinArmed then return end
+	if state ~= IN_PROGRESS then return end
+	if queuedThisTeleport then return end
+	if queueScriptOnTeleport(buildReexecCode()) then
+		queuedThisTeleport = true
+	end
+end)
 
 local function isKickPrompt(guiObj)
 	if not guiObj or not guiObj:IsA("GuiObject") then
