@@ -10,9 +10,22 @@ local CONFIG = {
 	REJOIN_DELAY = 2,
 }
 
+local function runConfiguredScript()
+	if type(CONFIG.SCRIPT_URL) ~= "string" or CONFIG.SCRIPT_URL == "" then
+		return
+	end
+	pcall(function()
+		loadstring(game:HttpGet(CONFIG.SCRIPT_URL))()
+	end)
+end
+
 local function queueScriptOnTeleport(code)
 	if type(queue_on_teleport) == "function" then
 		queue_on_teleport(code)
+		return true
+	end
+	if type(queueonteleport) == "function" then
+		queueonteleport(code)
 		return true
 	end
 	if syn and type(syn.queue_on_teleport) == "function" then
@@ -30,10 +43,39 @@ local function buildReexecCode()
 	return ("pcall(function() loadstring(game:HttpGet(%q))() end)"):format(CONFIG.SCRIPT_URL)
 end
 
+task.spawn(function()
+	local ok, teleportData = pcall(function()
+		return TeleportService:GetLocalPlayerTeleportData()
+	end)
+	if ok and type(teleportData) == "table" and teleportData.__abyss_reexec == true then
+		task.wait(2)
+		runConfiguredScript()
+	end
+end)
+
+local rejoining = false
 local function rejoinNow()
-	queueScriptOnTeleport(buildReexecCode())
+	if rejoining then return end
+	rejoining = true
+
+	local queued = queueScriptOnTeleport(buildReexecCode())
 	task.wait(CONFIG.REJOIN_DELAY)
-	TeleportService:Teleport(game.PlaceId, lp)
+
+	local options = Instance.new("TeleportOptions")
+	options:SetTeleportData({
+		__abyss_reexec = true,
+	})
+
+	local ok = pcall(function()
+		TeleportService:TeleportAsync(game.PlaceId, { lp }, options)
+	end)
+
+	if not ok then
+		if not queued then
+			warn("Abyss AutoRejoin: queue_on_teleport missing; re-exec may not run after rejoin.")
+		end
+		TeleportService:Teleport(game.PlaceId, lp)
+	end
 end
 
 local function isKickPrompt(guiObj)
@@ -60,4 +102,3 @@ promptOverlay.ChildAdded:Connect(function(child)
 		task.spawn(rejoinNow)
 	end
 end)
-
