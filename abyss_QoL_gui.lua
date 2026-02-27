@@ -5,7 +5,6 @@ local RS = game:GetService("ReplicatedStorage")
 local lp = Players.LocalPlayer
 local pg = lp:WaitForChild("PlayerGui")
 local Common = RS:WaitForChild("common")
-local Assets = Common:WaitForChild("assets")
 local KnitServices = Common:WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services")
 
 local BASE = "https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/"
@@ -44,11 +43,13 @@ local refreshShopList
 local setGeodeToggleVisual
 local setAutoDailyToggleVisual
 
+local BTN_GREEN = Color3.fromRGB(46, 140, 87)
+local BTN_RED = Color3.fromRGB(150, 62, 62)
+
 local DailyClaimRF = KnitServices
 	:WaitForChild("DailyRewardService")
 	:WaitForChild("RF")
 	:WaitForChild("Claim")
-local FishAssets = Assets:WaitForChild("fish")
 
 local autoDailyOn = false
 local autoDailyConn
@@ -189,7 +190,7 @@ end
 
 local tabs = {
 	Artifacts = makeTabContainer(),
-	["Deletion / Clean Up"] = makeTabContainer(),
+	Deletion = makeTabContainer(),
 	Shop = makeTabContainer(),
 	Misc = makeTabContainer(),
 }
@@ -211,12 +212,12 @@ tabGrid.CellPadding = UDim2.fromOffset(8, 0)
 tabGrid.CellSize = UDim2.new(1 / 4, -8, 1, 0)
 
 local tabArtifacts = tabButton(tabBar, "Artifacts")
-local tabCleanup = tabButton(tabBar, "Deletion / Clean Up")
+local tabCleanup = tabButton(tabBar, "Deletion")
 local tabShop = tabButton(tabBar, "Shop")
 local tabMisc = tabButton(tabBar, "Misc")
 
 tabArtifacts.MouseButton1Click:Connect(function() showTab("Artifacts") end)
-tabCleanup.MouseButton1Click:Connect(function() showTab("Deletion / Clean Up") end)
+tabCleanup.MouseButton1Click:Connect(function() showTab("Deletion") end)
 tabShop.MouseButton1Click:Connect(function() showTab("Shop") end)
 tabMisc.MouseButton1Click:Connect(function() showTab("Misc") end)
 
@@ -224,22 +225,11 @@ tabMisc.MouseButton1Click:Connect(function() showTab("Misc") end)
 do
 	local t = tabs["Artifacts"]
 
-	local row1 = makeRow(t, 3, 34)
-	makeButton(row1, "Weight Set", Color3.fromRGB(90, 110, 160)).MouseButton1Click:Connect(
-		function() artifactSets.equipWeightSet() end
-	)
-	makeButton(row1, "Damage Set", Color3.fromRGB(160, 110, 90)).MouseButton1Click:Connect(
-		function() artifactSets.equipDamageSet() end
-	)
-	makeButton(row1, "Speed Set", Color3.fromRGB(80, 130, 90)).MouseButton1Click:Connect(
-		function() artifactSets.equipSpeedSet() end
-	)
-
 	local row2 = makeRow(t, 2, 34)
-	makeButton(row2, "Update Sets", Color3.fromRGB(70, 94, 138)).MouseButton1Click:Connect(
+	makeButton(row2, "Update Sets", BTN_GREEN).MouseButton1Click:Connect(
 		function() updateArtifacts.updateAllSets() end
 	)
-	makeButton(row2, "Delete Bad Artifacts", Color3.fromRGB(120, 62, 62)).MouseButton1Click:Connect(
+	makeButton(row2, "Delete Bad Artifacts", BTN_RED).MouseButton1Click:Connect(
 		function() deleteBadArtifacts.deleteBadArtifacts() end
 	)
 
@@ -324,7 +314,7 @@ do
 	populateArtifacts()
 
 	local row3 = makeRow(t, 2, 34)
-	local enableDeleteBtn = makeButton(row3, "Enable Delete", Color3.fromRGB(58, 120, 66))
+	local enableDeleteBtn = makeButton(row3, "Enable Delete", BTN_GREEN)
 	enableDeleteBtn.MouseButton1Click:Connect(
 		function()
 			if not sel then return end
@@ -333,7 +323,7 @@ do
 			paint()
 		end
 	)
-	local disableDeleteBtn = makeButton(row3, "Disable Delete", Color3.fromRGB(120, 62, 62))
+	local disableDeleteBtn = makeButton(row3, "Disable Delete", BTN_RED)
 	disableDeleteBtn.MouseButton1Click:Connect(
 		function()
 			if not sel then return end
@@ -364,23 +354,24 @@ do
 	getArtifactAutoDeleteList = getArtifactAutoDeleteListImpl
 end
 
--- Deletion / Clean Up tab
+-- Deletion tab
 do
-	local t = tabs["Deletion / Clean Up"]
-	local row1 = makeRow(t, 2, 34)
-	makeButton(row1, "Deposit", Color3.fromRGB(46, 140, 87)).MouseButton1Click:Connect(
-		function()
-			portableStash.rebuildHotbarFishCache()
-			portableStash.depositFishByWeightDesc()
-		end
-	)
-	makeButton(row1, "Withdraw", Color3.fromRGB(150, 62, 62)).MouseButton1Click:Connect(
-		function() portableStash.withdrawAll() end
-	)
+	local t = tabs["Deletion"]
+	local row2 = makeRow(t, 3, 34)
+	local nameBox = Instance.new("TextBox")
+	nameBox.Parent = row2
+	nameBox.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
+	nameBox.Font = Enum.Font.Gotham
+	nameBox.TextSize = 13
+	nameBox.TextColor3 = Color3.new(1, 1, 1)
+	nameBox.PlaceholderText = ""
+	nameBox.ClearTextOnFocus = false
+	nameBox.Text = ""
+	nameBox.BorderSizePixel = 0
+	Instance.new("UICorner", nameBox).CornerRadius = UDim.new(0, 6)
 
-	local row2 = makeRow(t, 2, 34)
-	local toggleBtn = makeButton(row2, "Auto Delete: OFF", Color3.fromRGB(95, 95, 95))
-	local clearBtn = makeButton(row2, "Clear List", Color3.fromRGB(120, 62, 62))
+	local addBtn = makeButton(row2, "Add", BTN_GREEN)
+	local toggleBtn = makeButton(row2, "Auto Delete: OFF", BTN_RED)
 
 	local list = Instance.new("ScrollingFrame")
 	list.Parent = t
@@ -400,79 +391,28 @@ do
 	pd.PaddingLeft = UDim.new(0, 6)
 	pd.PaddingRight = UDim.new(0, 6)
 
-	local selectedName
-	local rows = {}
-	local enabledNames = {}
-
-	local function rowColor(name)
-		if enabledNames[name] then
-			return Color3.fromRGB(150, 62, 62)
-		end
-		return (name == selectedName and Color3.fromRGB(70, 94, 138) or Color3.fromRGB(45, 45, 54))
-	end
-
-	local function paintRows()
-		for name, b in pairs(rows) do
-			if b.Parent then
-				b.BackgroundColor3 = rowColor(name)
-			end
-		end
-	end
-
-	local function getFishModelNames()
-		local out = {}
-		local kids = FishAssets:GetChildren()
-		for i = 1, #kids do
-			local inst = kids[i]
-			if inst:IsA("Model") then
-				out[#out + 1] = inst.Name
-			end
-		end
-		table.sort(out)
-		return out
-	end
-
 	local function refreshList()
-		for _, b in pairs(rows) do
-			if b.Parent then
-				b:Destroy()
-			end
+		for _, child in ipairs(list:GetChildren()) do
+			if child:IsA("TextLabel") then child:Destroy() end
 		end
-		rows = {}
-
-		table.clear(enabledNames)
 		local names = fishAutoDelete.getNames()
 		for i = 1, #names do
-			enabledNames[names[i]] = true
-		end
-
-		local fishNames = getFishModelNames()
-		for i = 1, #fishNames do
-			local name = fishNames[i]
-			local b = Instance.new("TextButton")
-			b.Parent = list
-			b.Size = UDim2.new(1, -8, 0, 24)
-			b.Text = name
-			b.TextXAlignment = Enum.TextXAlignment.Left
-			b.Font = Enum.Font.Gotham
-			b.TextSize = 13
-			b.TextColor3 = Color3.new(1, 1, 1)
-			b.BackgroundColor3 = rowColor(name)
-			b.BorderSizePixel = 0
-			Instance.new("UICorner", b).CornerRadius = UDim.new(0, 5)
-			local p = Instance.new("UIPadding", b)
-			p.PaddingLeft = UDim.new(0, 8)
-
-			b.MouseButton1Click:Connect(function()
-				selectedName = name
-				paintRows()
-			end)
-			rows[name] = b
+			local label = Instance.new("TextLabel")
+			label.Parent = list
+			label.Size = UDim2.new(1, -8, 0, 22)
+			label.BackgroundColor3 = BTN_RED
+			label.BorderSizePixel = 0
+			label.Font = Enum.Font.Gotham
+			label.TextSize = 12
+			label.TextColor3 = Color3.fromRGB(240, 240, 240)
+			label.TextXAlignment = Enum.TextXAlignment.Left
+			label.Text = names[i]
+			local lp = Instance.new("UIPadding", label)
+			lp.PaddingLeft = UDim.new(0, 6)
 		end
 
 		task.defer(function()
 			list.CanvasSize = UDim2.new(0, 0, 0, lo.AbsoluteContentSize.Y + 12)
-			paintRows()
 		end)
 	end
 	refreshFishList = refreshList
@@ -480,47 +420,28 @@ do
 	local function setToggleVisual(on)
 		if on then
 			toggleBtn.Text = "Auto Delete: ON"
-			toggleBtn.BackgroundColor3 = Color3.fromRGB(55, 145, 85)
+			toggleBtn.BackgroundColor3 = BTN_GREEN
 		else
 			toggleBtn.Text = "Auto Delete: OFF"
-			toggleBtn.BackgroundColor3 = Color3.fromRGB(95, 95, 95)
+			toggleBtn.BackgroundColor3 = BTN_RED
 		end
 	end
 	setFishToggleVisual = setToggleVisual
+
+	addBtn.MouseButton1Click:Connect(function()
+		local name = nameBox.Text
+		name = name:gsub("^%s+", ""):gsub("%s+$", "")
+		if name == "" then return end
+		if fishAutoDelete.addName(name) then
+			nameBox.Text = ""
+			refreshList()
+		end
+	end)
 
 	toggleBtn.MouseButton1Click:Connect(function()
 		local on = not fishAutoDelete.getEnabled()
 		fishAutoDelete.setEnabled(on)
 		setToggleVisual(on)
-	end)
-
-	local row3 = makeRow(t, 2, 34)
-	local enableBtn = makeButton(row3, "Enable Selected", Color3.fromRGB(58, 120, 66))
-	local disableBtn = makeButton(row3, "Disable Selected", Color3.fromRGB(120, 62, 62))
-
-	enableBtn.MouseButton1Click:Connect(function()
-		if not selectedName then return end
-		if fishAutoDelete.addName(selectedName) then
-			refreshList()
-		end
-	end)
-
-	disableBtn.MouseButton1Click:Connect(function()
-		if not selectedName then return end
-		local names = fishAutoDelete.getNames()
-		local out = {}
-		for i = 1, #names do
-			if names[i] ~= selectedName then
-				out[#out + 1] = names[i]
-			end
-		end
-		fishAutoDelete.setNames(out)
-		refreshList()
-	end)
-
-	clearBtn.MouseButton1Click:Connect(function()
-		fishAutoDelete.clearNames()
-		refreshList()
 	end)
 
 	setToggleVisual(fishAutoDelete.getEnabled())
@@ -531,18 +452,39 @@ end
 do
 	local t = tabs["Misc"]
 	local row1 = makeRow(t, 3, 34)
-	makeButton(row1, "Sell All", Color3.fromRGB(136, 108, 168)).MouseButton1Click:Connect(
+	makeButton(row1, "Weight Set", BTN_GREEN).MouseButton1Click:Connect(
+		function() artifactSets.equipWeightSet() end
+	)
+	makeButton(row1, "Damage Set", BTN_GREEN).MouseButton1Click:Connect(
+		function() artifactSets.equipDamageSet() end
+	)
+	makeButton(row1, "Speed Set", BTN_GREEN).MouseButton1Click:Connect(
+		function() artifactSets.equipSpeedSet() end
+	)
+
+	local row2 = makeRow(t, 3, 34)
+	makeButton(row2, "Deposit", BTN_GREEN).MouseButton1Click:Connect(
+		function()
+			portableStash.rebuildHotbarFishCache()
+			portableStash.depositFishByWeightDesc()
+		end
+	)
+	makeButton(row2, "Withdraw", BTN_RED).MouseButton1Click:Connect(
+		function() portableStash.withdrawAll() end
+	)
+	makeButton(row2, "Sell All", BTN_GREEN).MouseButton1Click:Connect(
 		function() sellAll.sellAll() end
 	)
 
-	local autoDailyBtn = makeButton(row1, "Auto Daily: OFF", Color3.fromRGB(95, 95, 95))
+	local row3 = makeRow(t, 3, 34)
+	local autoDailyBtn = makeButton(row3, "Auto Daily: OFF", BTN_RED)
 	local function setAutoDailyToggleVisualImpl(on)
 		if on then
 			autoDailyBtn.Text = "Auto Daily: ON"
-			autoDailyBtn.BackgroundColor3 = Color3.fromRGB(55, 145, 85)
+			autoDailyBtn.BackgroundColor3 = BTN_GREEN
 		else
 			autoDailyBtn.Text = "Auto Daily: OFF"
-			autoDailyBtn.BackgroundColor3 = Color3.fromRGB(95, 95, 95)
+			autoDailyBtn.BackgroundColor3 = BTN_RED
 		end
 	end
 	setAutoDailyToggleVisual = setAutoDailyToggleVisualImpl
@@ -551,7 +493,7 @@ do
 	end)
 	setAutoDailyToggleVisualImpl(autoDailyOn)
 
-	makeButton(row1, "Save Settings", Color3.fromRGB(70, 94, 138)).MouseButton1Click:Connect(function()
+	makeButton(row3, "Save Settings", BTN_GREEN).MouseButton1Click:Connect(function()
 		if not writefile then return end
 		local payload = {
 			fishNames = fishAutoDelete.getNames(),
@@ -569,17 +511,16 @@ do
 		end
 	end)
 
-	local row2 = makeRow(t, 2, 34)
-	local antiBtn = makeButton(row2, "Anti AFK: OFF", Color3.fromRGB(95, 95, 95))
+	local antiBtn = makeButton(row3, "Anti AFK: OFF", BTN_RED)
 	setAntiAfk = function(on)
 		antiOn = on == true
 		if antiOn then
 			antiBtn.Text = "Anti AFK: ON"
-			antiBtn.BackgroundColor3 = Color3.fromRGB(55, 145, 85)
+			antiBtn.BackgroundColor3 = BTN_GREEN
 			antiAfk.start(600)
 		else
 			antiBtn.Text = "Anti AFK: OFF"
-			antiBtn.BackgroundColor3 = Color3.fromRGB(95, 95, 95)
+			antiBtn.BackgroundColor3 = BTN_RED
 			antiAfk.stop()
 		end
 	end
@@ -587,14 +528,15 @@ do
 		setAntiAfk(not antiOn)
 	end)
 
-	local openGeodeBtn = makeButton(row2, "Open Geode: OFF", Color3.fromRGB(95, 95, 95))
+	local row4 = makeRow(t, 1, 34)
+	local openGeodeBtn = makeButton(row4, "Open Geode: OFF", BTN_RED)
 	local function setGeodeToggleVisualImpl(on)
 		if on then
 			openGeodeBtn.Text = "Open Geode: ON"
-			openGeodeBtn.BackgroundColor3 = Color3.fromRGB(55, 145, 85)
+			openGeodeBtn.BackgroundColor3 = BTN_GREEN
 		else
 			openGeodeBtn.Text = "Open Geode: OFF"
-			openGeodeBtn.BackgroundColor3 = Color3.fromRGB(95, 95, 95)
+			openGeodeBtn.BackgroundColor3 = BTN_RED
 		end
 	end
 	openGeodeBtn.MouseButton1Click:Connect(function()
@@ -609,9 +551,10 @@ end
 -- Shop tab
 do
 	local t = tabs["Shop"]
-	local row1 = makeRow(t, 2, 34)
-	local shopToggleBtn = makeButton(row1, "Shop Buyer: OFF", Color3.fromRGB(95, 95, 95))
-	local shopClearBtn = makeButton(row1, "Clear Selected", Color3.fromRGB(120, 62, 62))
+	local row1 = makeRow(t, 3, 34)
+	local shopToggleBtn = makeButton(row1, "Shop Buyer: OFF", BTN_RED)
+	local enableBtn = makeButton(row1, "Enable Selected", BTN_GREEN)
+	local disableBtn = makeButton(row1, "Disable Selected", BTN_RED)
 
 	local list = Instance.new("ScrollingFrame")
 	list.Parent = t
@@ -698,10 +641,10 @@ do
 	local function setToggleVisual(on)
 		if on then
 			shopToggleBtn.Text = "Shop Buyer: ON"
-			shopToggleBtn.BackgroundColor3 = Color3.fromRGB(55, 145, 85)
+			shopToggleBtn.BackgroundColor3 = BTN_GREEN
 		else
 			shopToggleBtn.Text = "Shop Buyer: OFF"
-			shopToggleBtn.BackgroundColor3 = Color3.fromRGB(95, 95, 95)
+			shopToggleBtn.BackgroundColor3 = BTN_RED
 		end
 	end
 	setShopToggleVisual = setToggleVisual
@@ -711,15 +654,6 @@ do
 		shopBuyer.setEnabled(on)
 		setToggleVisual(on)
 	end)
-
-	shopClearBtn.MouseButton1Click:Connect(function()
-		shopBuyer.clearItems()
-		refreshList()
-	end)
-
-	local row2 = makeRow(t, 2, 34)
-	local enableBtn = makeButton(row2, "Enable Selected", Color3.fromRGB(58, 120, 66))
-	local disableBtn = makeButton(row2, "Disable Selected", Color3.fromRGB(120, 62, 62))
 
 	enableBtn.MouseButton1Click:Connect(function()
 		if not selectedName then return end
