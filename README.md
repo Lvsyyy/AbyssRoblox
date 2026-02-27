@@ -27,7 +27,7 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/ma
 ```
 
 ## Preview
-<img width="253" height="183" alt="{DBF2D727-53DA-464F-87F6-2B6494BB7C22}" src="https://github.com/user-attachments/assets/a5db8357-8a0a-42f5-9c04-7c473471ccc5" />
-<img width="252" height="182" alt="{66F7F159-738C-4F9F-A0E9-DC5EA78FBDFD}" src="https://github.com/user-attachments/assets/9e2c0fcf-d423-49f9-ba27-60f8b8be1e8e" />
-<img width="252" height="183" alt="{54ACBD42-DA0C-4745-931C-793E9DD9D580}" src="https://github.com/user-attachments/assets/36a1c696-3e4c-419e-905e-8c240ac11a60" />
-<img width="252" height="182" alt="{9B490AF5-3ADE-4978-AFB0-504E28D8103A}" src="https://github.com/user-attachments/assets/c031bdef-4746-4a29-89b8-609c182ce1e0" />
+<img width="960" height="540" alt="{DA3943A9-F18B-4D2F-BD5C-835F9CE1FB14}" src="https://github.com/user-attachments/assets/e13312cd-f0a5-4ca3-9917-751ca9c9ef9c" />
+<img width="960" height="540" alt="{B94F9FEA-E131-4FE2-A5FE-4D1C4E9C104A}" src="https://github.com/user-attachments/assets/fad1e1a5-d906-40c2-88f5-723b60520bf2" />
+<img width="960" height="540" alt="{366D15E7-21F3-409C-B593-D0E2F3FDCCB9}" src="https://github.com/user-attachments/assets/18803b1a-e2b0-466d-8606-cc5a8874655d" />
+<img width="960" height="540" alt="{5A7ADC19-733D-4416-82D7-E39D7794D8C1}" src="https://github.com/user-attachments/assets/55deeb11-acef-4dca-8bd6-7358c5939106" />
