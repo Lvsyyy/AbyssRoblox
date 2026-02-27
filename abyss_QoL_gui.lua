@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
 
 local lp = Players.LocalPlayer
 local pg = lp:WaitForChild("PlayerGui")
@@ -126,6 +127,90 @@ local function makeButton(parent, text, color)
 	b.BorderSizePixel = 0
 	Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
 	return b
+end
+
+local visitedServers = (getgenv and getgenv().__abyssVisitedServers) or {}
+if getgenv then
+	getgenv().__abyssVisitedServers = visitedServers
+end
+visitedServers[game.JobId] = true
+
+local rng = Random.new()
+
+local function getHopCandidates(maxPages)
+	local unseen = {}
+	local seen = {}
+	local cursor
+
+	for _ = 1, maxPages do
+		local url = ("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100"):format(game.PlaceId)
+		if type(cursor) == "string" and cursor ~= "" then
+			url = url .. "&cursor=" .. HttpService:UrlEncode(cursor)
+		end
+
+		local okBody, body = pcall(function()
+			return game:HttpGet(url)
+		end)
+		if not okBody or type(body) ~= "string" or body == "" then
+			break
+		end
+
+		local okJson, decoded = pcall(function()
+			return HttpService:JSONDecode(body)
+		end)
+		if not okJson or type(decoded) ~= "table" then
+			break
+		end
+
+		local list = decoded.data
+		if type(list) == "table" then
+			for i = 1, #list do
+				local srv = list[i]
+				local id = srv and srv.id
+				local playing = srv and srv.playing
+				local maxPlayers = srv and srv.maxPlayers
+				if type(id) == "string"
+					and id ~= ""
+					and id ~= game.JobId
+					and type(playing) == "number"
+					and type(maxPlayers) == "number"
+					and playing < maxPlayers
+				then
+					if visitedServers[id] then
+						seen[#seen + 1] = id
+					else
+						unseen[#unseen + 1] = id
+					end
+				end
+			end
+		end
+
+		cursor = decoded.nextPageCursor
+		if type(cursor) ~= "string" or cursor == "" then
+			break
+		end
+	end
+
+	if #unseen > 0 then
+		return unseen
+	end
+	return seen
+end
+
+local function hopRandomServer()
+	local candidates = getHopCandidates(4)
+	if #candidates == 0 then
+		return pcall(function()
+			TeleportService:Teleport(game.PlaceId, lp)
+		end)
+	end
+
+	local targetId = candidates[rng:NextInteger(1, #candidates)]
+	visitedServers[targetId] = true
+
+	return pcall(function()
+		TeleportService:TeleportToPlaceInstance(game.PlaceId, targetId, lp)
+	end)
 end
 
 
@@ -423,21 +508,8 @@ do
 		function() sellAll.sellAll() end
 	)
 
-	local antiBtn = makeButton(row1, "Anti AFK: OFF", Color3.fromRGB(95, 95, 95))
-	setAntiAfk = function(on)
-		antiOn = on == true
-		if antiOn then
-			antiBtn.Text = "Anti AFK: ON"
-			antiBtn.BackgroundColor3 = Color3.fromRGB(55, 145, 85)
-			antiAfk.start(10)
-		else
-			antiBtn.Text = "Anti AFK: OFF"
-			antiBtn.BackgroundColor3 = Color3.fromRGB(95, 95, 95)
-			antiAfk.stop()
-		end
-	end
-	antiBtn.MouseButton1Click:Connect(function()
-		setAntiAfk(not antiOn)
+	makeButton(row1, "Server Hopper", Color3.fromRGB(70, 94, 138)).MouseButton1Click:Connect(function()
+		hopRandomServer()
 	end)
 
 	makeButton(row1, "Save Settings", Color3.fromRGB(70, 94, 138)).MouseButton1Click:Connect(function()
@@ -457,7 +529,24 @@ do
 		end
 	end)
 
-	local row2 = makeRow(t, 2, 34)
+	local row2 = makeRow(t, 3, 34)
+	local antiBtn = makeButton(row2, "Anti AFK: OFF", Color3.fromRGB(95, 95, 95))
+	setAntiAfk = function(on)
+		antiOn = on == true
+		if antiOn then
+			antiBtn.Text = "Anti AFK: ON"
+			antiBtn.BackgroundColor3 = Color3.fromRGB(55, 145, 85)
+			antiAfk.start(10)
+		else
+			antiBtn.Text = "Anti AFK: OFF"
+			antiBtn.BackgroundColor3 = Color3.fromRGB(95, 95, 95)
+			antiAfk.stop()
+		end
+	end
+	antiBtn.MouseButton1Click:Connect(function()
+		setAntiAfk(not antiOn)
+	end)
+
 	local shopToggleBtn = makeButton(row2, "Shop Buyer: OFF", Color3.fromRGB(95, 95, 95))
 	local openGeodeBtn = makeButton(row2, "Open Geode: OFF", Color3.fromRGB(95, 95, 95))
 	local function setGeodeToggleVisualImpl(on)
