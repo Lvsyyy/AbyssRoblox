@@ -123,6 +123,19 @@ frame.Position = UDim2.fromOffset(100, 100)
 frame.BorderSizePixel = 0
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
 
+local credit = Instance.new("TextLabel")
+credit.Parent = frame
+credit.Size = UDim2.new(1, -20, 0, 10)
+credit.Position = UDim2.new(0, 10, 1, -12)
+credit.BackgroundTransparency = 1
+credit.BorderSizePixel = 0
+credit.Font = Enum.Font.Gotham
+credit.TextSize = 11
+credit.TextColor3 = Color3.fromRGB(210, 210, 210)
+credit.TextXAlignment = Enum.TextXAlignment.Center
+credit.TextYAlignment = Enum.TextYAlignment.Center
+credit.Text = "Made by @Lvsyyyyy on GitHub"
+
 local function tabButton(parent, text)
 	local b = Instance.new("TextButton")
 	b.Parent = parent
