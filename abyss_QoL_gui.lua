@@ -24,6 +24,7 @@ local deleteBadArtifacts = loadModule("abyss_DeleteBadArtifacts")
 local autoDelete = loadModule("artifactAutoDelete")
 local fishAutoDelete = loadModule("fishAutoDelete")
 local geodeOpener = loadModule("abyss_GeodeOpener")
+local autoRejoin = loadModule("abyss_AutoRejoin")
 
 portableStash.init()
 fishAutoDelete.init()
