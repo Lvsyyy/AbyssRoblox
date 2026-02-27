@@ -18,6 +18,7 @@ local CONFIG = {
 local IN_PROGRESS = Enum.TeleportState.InProgress
 local rejoinArmed = false
 local queuedThisTeleport = false
+local g = getgenv and getgenv() or _G
 
 local function runConfiguredScript()
 	if type(CONFIG.SCRIPT_URL) ~= "string" or CONFIG.SCRIPT_URL == "" then
@@ -157,7 +158,12 @@ task.spawn(function()
 	local ok, teleportData = pcall(function()
 		return TeleportService:GetLocalPlayerTeleportData()
 	end)
-if ok and type(teleportData) == "table" and teleportData.__abyss_reexec == true then
+	if ok
+		and type(teleportData) == "table"
+		and teleportData.__abyss_reexec == true
+		and not g.__abyss_reexec_consumed
+	then
+		g.__abyss_reexec_consumed = true
 		runConfiguredScript()
 	end
 end)
