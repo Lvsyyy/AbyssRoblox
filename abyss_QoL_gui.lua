@@ -45,11 +45,13 @@ local setAutoDailyToggleVisual
 
 local BTN_GREEN = Color3.fromRGB(46, 140, 87)
 local BTN_RED = Color3.fromRGB(150, 62, 62)
+local BTN_GRAY = Color3.fromRGB(95, 95, 95)
 
 local DailyClaimRF = KnitServices
 	:WaitForChild("DailyRewardService")
 	:WaitForChild("RF")
 	:WaitForChild("Claim")
+local FishAssets = Common:WaitForChild("assets"):WaitForChild("fish")
 
 local autoDailyOn = false
 local autoDailyConn
@@ -386,29 +388,66 @@ do
 	local toggleBtn = makeButton(row2, "Auto Delete: OFF", BTN_RED)
 
 	local list, lo = makeScrollingList(t, 150)
+	local selectedFish
+	local rows = {}
+	local enabledFish = {}
+
+	local function rowColor(name)
+		if enabledFish[name] then
+			return BTN_RED
+		end
+		return (name == selectedFish and Color3.fromRGB(70, 94, 138) or Color3.fromRGB(45, 45, 54))
+	end
+
+	local function paintRows()
+		for name, b in pairs(rows) do
+			if b.Parent then
+				b.BackgroundColor3 = rowColor(name)
+			end
+		end
+	end
+
+	local function getFishModelNames()
+		local out = {}
+		local kids = FishAssets:GetChildren()
+		for i = 1, #kids do
+			local inst = kids[i]
+			if inst:IsA("Model") then
+				out[#out + 1] = inst.Name
+			end
+		end
+		table.sort(out)
+		return out
+	end
 
 	local function refreshList()
-		for _, child in ipairs(list:GetChildren()) do
-			if child:IsA("TextLabel") then child:Destroy() end
+		for _, b in pairs(rows) do
+			if b.Parent then
+				b:Destroy()
+			end
 		end
-		local names = fishAutoDelete.getNames()
-		for i = 1, #names do
-			local label = Instance.new("TextLabel")
-			label.Parent = list
-			label.Size = UDim2.new(1, -8, 0, 22)
-			label.BackgroundColor3 = BTN_RED
-			label.BorderSizePixel = 0
-			label.Font = Enum.Font.Gotham
-			label.TextSize = 12
-			label.TextColor3 = Color3.fromRGB(240, 240, 240)
-			label.TextXAlignment = Enum.TextXAlignment.Left
-			label.Text = names[i]
-			local lp = Instance.new("UIPadding", label)
-			lp.PaddingLeft = UDim.new(0, 6)
+		rows = {}
+
+		table.clear(enabledFish)
+		local enabledNames = fishAutoDelete.getNames()
+		for i = 1, #enabledNames do
+			enabledFish[enabledNames[i]] = true
+		end
+
+		local fishNames = getFishModelNames()
+		for i = 1, #fishNames do
+			local name = fishNames[i]
+			local b = makeSelectableRow(list, name, rowColor(name), function()
+				selectedFish = name
+				nameBox.Text = name
+				paintRows()
+			end)
+			rows[name] = b
 		end
 
 		task.defer(function()
 			list.CanvasSize = UDim2.new(0, 0, 0, lo.AbsoluteContentSize.Y + 12)
+			paintRows()
 		end)
 	end
 	refreshFishList = refreshList
@@ -448,32 +487,18 @@ end
 do
 	local t = tabs["Misc"]
 	local row1 = makeRow(t, 3, 34)
-	makeButton(row1, "Weight Set", BTN_GREEN).MouseButton1Click:Connect(
+	makeButton(row1, "Weight Set", BTN_GRAY).MouseButton1Click:Connect(
 		function() artifactSets.equipWeightSet() end
 	)
-	makeButton(row1, "Damage Set", BTN_GREEN).MouseButton1Click:Connect(
+	makeButton(row1, "Damage Set", BTN_GRAY).MouseButton1Click:Connect(
 		function() artifactSets.equipDamageSet() end
 	)
-	makeButton(row1, "Speed Set", BTN_GREEN).MouseButton1Click:Connect(
+	makeButton(row1, "Speed Set", BTN_GRAY).MouseButton1Click:Connect(
 		function() artifactSets.equipSpeedSet() end
 	)
 
 	local row2 = makeRow(t, 3, 34)
-	makeButton(row2, "Deposit", BTN_GREEN).MouseButton1Click:Connect(
-		function()
-			portableStash.rebuildHotbarFishCache()
-			portableStash.depositFishByWeightDesc()
-		end
-	)
-	makeButton(row2, "Withdraw", BTN_RED).MouseButton1Click:Connect(
-		function() portableStash.withdrawAll() end
-	)
-	makeButton(row2, "Sell All", BTN_GREEN).MouseButton1Click:Connect(
-		function() sellAll.sellAll() end
-	)
-
-	local row3 = makeRow(t, 3, 34)
-	local autoDailyBtn = makeButton(row3, "Auto Daily: OFF", BTN_RED)
+	local autoDailyBtn = makeButton(row2, "Auto Daily: OFF", BTN_RED)
 	local function setAutoDailyToggleVisualImpl(on)
 		if on then
 			autoDailyBtn.Text = "Auto Daily: ON"
@@ -489,7 +514,46 @@ do
 	end)
 	setAutoDailyToggleVisualImpl(autoDailyOn)
 
-	makeButton(row3, "Save Settings", BTN_GREEN).MouseButton1Click:Connect(function()
+	local antiBtn = makeButton(row2, "Anti AFK: OFF", BTN_RED)
+	setAntiAfk = function(on)
+		antiOn = on == true
+		if antiOn then
+			antiBtn.Text = "Anti AFK: ON"
+			antiBtn.BackgroundColor3 = BTN_GREEN
+			antiAfk.start(600)
+		else
+			antiBtn.Text = "Anti AFK: OFF"
+			antiBtn.BackgroundColor3 = BTN_RED
+			antiAfk.stop()
+		end
+	end
+	antiBtn.MouseButton1Click:Connect(function()
+		setAntiAfk(not antiOn)
+	end)
+
+	local openGeodeBtn = makeButton(row2, "Open Geode: OFF", BTN_RED)
+	local function setGeodeToggleVisualImpl(on)
+		if on then
+			openGeodeBtn.Text = "Open Geode: ON"
+			openGeodeBtn.BackgroundColor3 = BTN_GREEN
+		else
+			openGeodeBtn.Text = "Open Geode: OFF"
+			openGeodeBtn.BackgroundColor3 = BTN_RED
+		end
+	end
+	openGeodeBtn.MouseButton1Click:Connect(function()
+		local on = not geodeOpener.getEnabled()
+		geodeOpener.setEnabled(on)
+		setGeodeToggleVisualImpl(on)
+	end)
+	setGeodeToggleVisual = setGeodeToggleVisualImpl
+	setGeodeToggleVisualImpl(geodeOpener.getEnabled())
+
+	local row3 = makeRow(t, 2, 34)
+	makeButton(row3, "Sell All", BTN_GRAY).MouseButton1Click:Connect(
+		function() sellAll.sellAll() end
+	)
+	makeButton(row3, "Save Settings", BTN_GRAY).MouseButton1Click:Connect(function()
 		if not writefile then return end
 		local payload = {
 			fishNames = fishAutoDelete.getNames(),
@@ -507,41 +571,16 @@ do
 		end
 	end)
 
-	local antiBtn = makeButton(row3, "Anti AFK: OFF", BTN_RED)
-	setAntiAfk = function(on)
-		antiOn = on == true
-		if antiOn then
-			antiBtn.Text = "Anti AFK: ON"
-			antiBtn.BackgroundColor3 = BTN_GREEN
-			antiAfk.start(600)
-		else
-			antiBtn.Text = "Anti AFK: OFF"
-			antiBtn.BackgroundColor3 = BTN_RED
-			antiAfk.stop()
+	local row4 = makeRow(t, 2, 34)
+	makeButton(row4, "Deposit", BTN_GREEN).MouseButton1Click:Connect(
+		function()
+			portableStash.rebuildHotbarFishCache()
+			portableStash.depositFishByWeightDesc()
 		end
-	end
-	antiBtn.MouseButton1Click:Connect(function()
-		setAntiAfk(not antiOn)
-	end)
-
-	local row4 = makeRow(t, 1, 34)
-	local openGeodeBtn = makeButton(row4, "Open Geode: OFF", BTN_RED)
-	local function setGeodeToggleVisualImpl(on)
-		if on then
-			openGeodeBtn.Text = "Open Geode: ON"
-			openGeodeBtn.BackgroundColor3 = BTN_GREEN
-		else
-			openGeodeBtn.Text = "Open Geode: OFF"
-			openGeodeBtn.BackgroundColor3 = BTN_RED
-		end
-	end
-	openGeodeBtn.MouseButton1Click:Connect(function()
-		local on = not geodeOpener.getEnabled()
-		geodeOpener.setEnabled(on)
-		setGeodeToggleVisualImpl(on)
-	end)
-	setGeodeToggleVisual = setGeodeToggleVisualImpl
-	setGeodeToggleVisualImpl(geodeOpener.getEnabled())
+	)
+	makeButton(row4, "Withdraw", BTN_RED).MouseButton1Click:Connect(
+		function() portableStash.withdrawAll() end
+	)
 end
 
 -- Shop tab
