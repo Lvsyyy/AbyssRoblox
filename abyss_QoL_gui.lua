@@ -45,13 +45,7 @@ local setAutoDailyToggleVisual
 
 local BTN_GREEN = Color3.fromRGB(46, 140, 87)
 local BTN_RED = Color3.fromRGB(150, 62, 62)
-local BTN_GRAY = Color3.fromRGB(95, 95, 95)
-
-local LIST_HEIGHT_OVERRIDES = {
-	Artifacts = nil,
-	Deletion = nil,
-	Shop = nil,
-}
+local BTN_PURPLE = Color3.fromRGB(172, 142, 214)
 
 local TAB_CONTENT_HEIGHT = 302
 local TAB_PADDING_TOTAL = 20
@@ -200,11 +194,7 @@ local function makeButton(parent, text, color)
 	return b
 end
 
-local function getListHeight(tabKey, rowHeights)
-	local override = LIST_HEIGHT_OVERRIDES[tabKey]
-	if type(override) == "number" and override > 0 then
-		return math.floor(override)
-	end
+local function getListHeight(rowHeights)
 	local rows = 0
 	for i = 1, #rowHeights do
 		rows = rows + rowHeights[i]
@@ -301,7 +291,7 @@ do
 		function() deleteBadArtifacts.deleteBadArtifacts() end
 	)
 
-	local list, lo = makeScrollingList(t, getListHeight("Artifacts", { 34, 34 }))
+	local list, lo = makeScrollingList(t, getListHeight({ 34, 34 }))
 
 	local sel, rows = nil, {}
 	local autoDeleteEnabled = {}
@@ -411,7 +401,7 @@ do
 	local addBtn = makeButton(row2, "Add", BTN_GREEN)
 	local toggleBtn = makeButton(row2, "Auto Delete: OFF", BTN_RED)
 
-	local list, lo = makeScrollingList(t, getListHeight("Deletion", { 34 }))
+	local list, lo = makeScrollingList(t, getListHeight({ 34 }))
 	local selectedFish
 	local rows = {}
 	local enabledFish = {}
@@ -511,13 +501,13 @@ end
 do
 	local t = tabs["Misc"]
 	local row1 = makeRow(t, 3, 34)
-	makeButton(row1, "Weight Set", BTN_GRAY).MouseButton1Click:Connect(
+	makeButton(row1, "Weight Set", BTN_PURPLE).MouseButton1Click:Connect(
 		function() artifactSets.equipWeightSet() end
 	)
-	makeButton(row1, "Damage Set", BTN_GRAY).MouseButton1Click:Connect(
+	makeButton(row1, "Damage Set", BTN_PURPLE).MouseButton1Click:Connect(
 		function() artifactSets.equipDamageSet() end
 	)
-	makeButton(row1, "Speed Set", BTN_GRAY).MouseButton1Click:Connect(
+	makeButton(row1, "Speed Set", BTN_PURPLE).MouseButton1Click:Connect(
 		function() artifactSets.equipSpeedSet() end
 	)
 
@@ -574,10 +564,10 @@ do
 	setGeodeToggleVisualImpl(geodeOpener.getEnabled())
 
 	local row3 = makeRow(t, 2, 34)
-	makeButton(row3, "Sell All", BTN_GRAY).MouseButton1Click:Connect(
+	makeButton(row3, "Sell All", BTN_PURPLE).MouseButton1Click:Connect(
 		function() sellAll.sellAll() end
 	)
-	makeButton(row3, "Save Settings", BTN_GRAY).MouseButton1Click:Connect(function()
+	makeButton(row3, "Save Settings", BTN_PURPLE).MouseButton1Click:Connect(function()
 		if not writefile then return end
 		local payload = {
 			fishNames = fishAutoDelete.getNames(),
@@ -615,7 +605,7 @@ do
 	local enableBtn = makeButton(row1, "Enable Selected", BTN_GREEN)
 	local disableBtn = makeButton(row1, "Disable Selected", BTN_RED)
 
-	local list, lo = makeScrollingList(t, getListHeight("Shop", { 34 }))
+	local list, lo = makeScrollingList(t, getListHeight({ 34 }))
 
 	local selectedName
 	local rows = {}
