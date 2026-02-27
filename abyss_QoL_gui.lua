@@ -45,7 +45,7 @@ local setAutoDailyToggleVisual
 
 local BTN_GREEN = Color3.fromRGB(46, 140, 87)
 local BTN_RED = Color3.fromRGB(150, 62, 62)
-local BTN_PURPLE = Color3.fromRGB(172, 142, 214)
+local BTN_PURPLE = Color3.fromRGB(136, 103, 181)
 
 local TAB_CONTENT_HEIGHT = 302
 local TAB_PADDING_TOTAL = 20
@@ -129,7 +129,7 @@ local function tabButton(parent, text)
 	b.Size = UDim2.new(1, 0, 1, 0)
 	b.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
 	b.Font = Enum.Font.GothamSemibold
-	b.TextSize = 13
+	b.TextSize = 14
 	b.TextColor3 = Color3.fromRGB(240, 240, 240)
 	b.Text = text
 	b.BorderSizePixel = 0
@@ -186,7 +186,7 @@ local function makeButton(parent, text, color)
 	b.Parent = parent
 	b.BackgroundColor3 = color
 	b.Font = Enum.Font.GothamSemibold
-	b.TextSize = 15
+	b.TextSize = 14
 	b.TextColor3 = Color3.fromRGB(240, 240, 240)
 	b.Text = text
 	b.BorderSizePixel = 0
@@ -233,7 +233,7 @@ local function makeSelectableRow(parent, text, color, onClick)
 	b.Text = text
 	b.TextXAlignment = Enum.TextXAlignment.Left
 	b.Font = Enum.Font.Gotham
-	b.TextSize = 13
+	b.TextSize = 14
 	b.TextColor3 = Color3.new(1, 1, 1)
 	b.BackgroundColor3 = color
 	b.BorderSizePixel = 0
@@ -390,7 +390,7 @@ do
 	nameBox.Parent = row2
 	nameBox.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
 	nameBox.Font = Enum.Font.Gotham
-	nameBox.TextSize = 15
+	nameBox.TextSize = 14
 	nameBox.TextColor3 = Color3.new(1, 1, 1)
 	nameBox.PlaceholderText = ""
 	nameBox.ClearTextOnFocus = false
