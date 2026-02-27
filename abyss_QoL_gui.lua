@@ -49,11 +49,11 @@ local DailyClaimRF = RS:WaitForChild("common")
 	:WaitForChild("RF")
 	:WaitForChild("Claim")
 
-local DAILY_READY_TEXT = "__SET_READY_TEXT__"
 local autoDailyOn = false
 local autoDailyConn
+local lastAutoDailyClaimAt = 0
 
-local function getDailyLabel()
+local function getDailyNextReward()
 	local main = pg:FindFirstChild("Main")
 	if not main then return nil end
 	local center = main:FindFirstChild("Center")
@@ -61,20 +61,18 @@ local function getDailyLabel()
 	local daily = center:FindFirstChild("DailyReward")
 	if not daily then return nil end
 	local nextReward = daily:FindFirstChild("NextReward")
-	if not nextReward then return nil end
-	local label = nextReward:FindFirstChild("Label")
-	if label and label:IsA("TextLabel") then
-		return label
+	if nextReward and nextReward:IsA("Frame") then
+		return nextReward
 	end
 	return nil
 end
 
 local function tryClaimDaily()
 	if not autoDailyOn then return end
-	if DAILY_READY_TEXT == "__SET_READY_TEXT__" then return end
-	local label = getDailyLabel()
-	if not label then return end
-	if label.Text == DAILY_READY_TEXT then
+	local nextReward = getDailyNextReward()
+	if not nextReward then return end
+	if nextReward.Visible == false and os.clock() - lastAutoDailyClaimAt > 3 then
+		lastAutoDailyClaimAt = os.clock()
 		pcall(function()
 			DailyClaimRF:InvokeServer()
 		end)
@@ -88,9 +86,9 @@ local function setAutoDaily(on)
 		autoDailyConn = nil
 	end
 	if autoDailyOn then
-		local label = getDailyLabel()
-		if label then
-			autoDailyConn = label:GetPropertyChangedSignal("Text"):Connect(tryClaimDaily)
+		local nextReward = getDailyNextReward()
+		if nextReward then
+			autoDailyConn = nextReward:GetPropertyChangedSignal("Visible"):Connect(tryClaimDaily)
 		end
 		tryClaimDaily()
 	end
