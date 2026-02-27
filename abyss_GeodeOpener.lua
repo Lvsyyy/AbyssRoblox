@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
+local WS = game:GetService("Workspace")
 
 local lp = Players.LocalPlayer
 local pg = lp:WaitForChild("PlayerGui")
@@ -11,6 +12,8 @@ local openRF = RS:WaitForChild("common")
 	:WaitForChild("ArtifactsService")
 	:WaitForChild("RF")
 	:WaitForChild("Open")
+
+local artifactFolder = WS:WaitForChild("Game"):WaitForChild("ArtifactAnim"):WaitForChild("Artifact")
 
 local function getItemName(inst)
 	local name = inst:GetAttribute("name") or inst:GetAttribute("Name")
@@ -42,112 +45,95 @@ local function getItemId(inst)
 	return nil
 end
 
-local function getItemCount(inst)
-	local count = inst:GetAttribute("count")
-		or inst:GetAttribute("Count")
-		or inst:GetAttribute("amount")
-		or inst:GetAttribute("Amount")
-		or inst:GetAttribute("quantity")
-		or inst:GetAttribute("Quantity")
-		or inst:GetAttribute("qty")
-		or inst:GetAttribute("Qty")
-		or inst:GetAttribute("stack")
-		or inst:GetAttribute("Stack")
-
-	if type(count) == "number" and count > 0 then
-		return count
-	end
-	return 1
-end
-
 local function isCoconutGeodeName(name)
-	local n = name:lower()
+	local n = string.lower(name)
 	if n:find("coconut", 1, true) and n:find("geode", 1, true) then
 		return true
 	end
 	return n == "coconut"
 end
 
-local function countCoconutGeodes()
+local function hasCoconutGeode()
 	local main = pg:FindFirstChild("Main")
-	if not main then return 0 end
+	if not main then return false end
 	local backpackGui = main:FindFirstChild("Backpack")
-	if not backpackGui then return 0 end
+	if not backpackGui then return false end
 
 	local list = backpackGui:FindFirstChild("List")
 		and backpackGui.List:FindFirstChild("CanvasGroup")
 		and backpackGui.List.CanvasGroup:FindFirstChild("ScrollingFrame")
 
 	local hotbar = backpackGui:FindFirstChild("Hotbar")
-
 	local seenIds = {}
-	local total = 0
 
-	local function scan(container, skipIfSeen)
-		if not container then return end
+	local function scan(container)
+		if not container then return false end
 		local kids = container:GetChildren()
 		for i = 1, #kids do
 			local inst = kids[i]
 			if inst.ClassName == "Frame" then
 				local id = getItemId(inst)
 				if id and seenIds[id] then
-					-- already counted from backpack
+					-- skip duplicate from hotbar/backpack
 				else
 					local name = getItemName(inst)
 					if type(name) == "string" and name ~= "" and isCoconutGeodeName(name) then
-						total = total + getItemCount(inst)
+						return true
 					end
 					if id then
 						seenIds[id] = true
-					elseif skipIfSeen then
-						-- hotbar entries without id might duplicate backpack entries
 					end
 				end
 			end
 		end
+		return false
 	end
 
-	scan(list, false)
-	scan(hotbar, true)
-
-	return total
+	if scan(list) then return true end
+	if scan(hotbar) then return true end
+	return false
 end
 
+local enabled = false
+local watching = false
+
 local function openGeode()
-	local coconutCount = countCoconutGeodes()
-	if coconutCount > 0 then
-		local amt = math.min(coconutCount, 99)
-		if amt > 0 then
-			openRF:InvokeServer("Coconut", amt)
-		end
+	if #artifactFolder:GetChildren() > 0 then
+		return
+	end
+
+	if hasCoconutGeode() then
+		openRF:InvokeServer("Coconut", 99)
 	else
 		openRF:InvokeServer("Rooted", 99)
 	end
 end
 
-local enabled = false
-local running = false
-local stopFlag = false
+local function tryOpen()
+	if not enabled then return end
+	pcall(openGeode)
+end
 
-local function startLoop()
-	if running then return end
-	running = true
-	stopFlag = false
-	task.spawn(function()
-		while not stopFlag do
-			if enabled then
-				pcall(openGeode)
-			end
-			task.wait(30)
+local function startWatching()
+	if watching then return end
+	watching = true
+
+	artifactFolder.ChildRemoved:Connect(function()
+		if #artifactFolder:GetChildren() == 0 then
+			tryOpen()
 		end
-		running = false
+	end)
+
+	artifactFolder.ChildAdded:Connect(function()
+		-- no-op; remove event drives the next open attempt
 	end)
 end
 
 local function setEnabled(v)
 	enabled = v == true
 	if enabled then
-		startLoop()
+		startWatching()
+		tryOpen()
 	end
 end
 

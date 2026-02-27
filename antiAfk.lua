@@ -13,7 +13,7 @@ local function start(intervalSeconds)
 			VIM:SendKeyEvent(true, Enum.KeyCode.LeftAlt, false, game)
 			task.wait()
 			VIM:SendKeyEvent(false, Enum.KeyCode.LeftAlt, false, game)
-			task.wait(intervalSeconds or 10)
+			task.wait(intervalSeconds or 600)
 		end
 		running = false
 	end)

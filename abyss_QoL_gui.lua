@@ -49,27 +49,50 @@ local DailyClaimRF = RS:WaitForChild("common")
 	:WaitForChild("RF")
 	:WaitForChild("Claim")
 
+local DAILY_READY_TEXT = "__SET_READY_TEXT__"
 local autoDailyOn = false
-local autoDailyRunning = false
+local autoDailyConn
 
-local function startAutoDailyLoop()
-	if autoDailyRunning then return end
-	autoDailyRunning = true
-	task.spawn(function()
-		while autoDailyOn do
-			pcall(function()
-				DailyClaimRF:InvokeServer()
-			end)
-			task.wait(30)
-		end
-		autoDailyRunning = false
-	end)
+local function getDailyLabel()
+	local main = pg:FindFirstChild("Main")
+	if not main then return nil end
+	local center = main:FindFirstChild("Center")
+	if not center then return nil end
+	local daily = center:FindFirstChild("DailyReward")
+	if not daily then return nil end
+	local nextReward = daily:FindFirstChild("NextReward")
+	if not nextReward then return nil end
+	local label = nextReward:FindFirstChild("Label")
+	if label and label:IsA("TextLabel") then
+		return label
+	end
+	return nil
+end
+
+local function tryClaimDaily()
+	if not autoDailyOn then return end
+	if DAILY_READY_TEXT == "__SET_READY_TEXT__" then return end
+	local label = getDailyLabel()
+	if not label then return end
+	if label.Text == DAILY_READY_TEXT then
+		pcall(function()
+			DailyClaimRF:InvokeServer()
+		end)
+	end
 end
 
 local function setAutoDaily(on)
 	autoDailyOn = on == true
+	if autoDailyConn then
+		autoDailyConn:Disconnect()
+		autoDailyConn = nil
+	end
 	if autoDailyOn then
-		startAutoDailyLoop()
+		local label = getDailyLabel()
+		if label then
+			autoDailyConn = label:GetPropertyChangedSignal("Text"):Connect(tryClaimDaily)
+		end
+		tryClaimDaily()
 	end
 	if setAutoDailyToggleVisual then
 		setAutoDailyToggleVisual(autoDailyOn)
@@ -168,6 +191,7 @@ end
 local tabs = {
 	Artifacts = makeTabContainer(),
 	["Deletion / Clean Up"] = makeTabContainer(),
+	Shop = makeTabContainer(),
 	Misc = makeTabContainer(),
 }
 
@@ -185,14 +209,16 @@ tabBar.BackgroundTransparency = 1
 
 local tabGrid = Instance.new("UIGridLayout", tabBar)
 tabGrid.CellPadding = UDim2.fromOffset(8, 0)
-tabGrid.CellSize = UDim2.new(1 / 3, -8, 1, 0)
+tabGrid.CellSize = UDim2.new(1 / 4, -8, 1, 0)
 
 local tabArtifacts = tabButton(tabBar, "Artifacts")
 local tabCleanup = tabButton(tabBar, "Deletion / Clean Up")
+local tabShop = tabButton(tabBar, "Shop")
 local tabMisc = tabButton(tabBar, "Misc")
 
 tabArtifacts.MouseButton1Click:Connect(function() showTab("Artifacts") end)
 tabCleanup.MouseButton1Click:Connect(function() showTab("Deletion / Clean Up") end)
+tabShop.MouseButton1Click:Connect(function() showTab("Shop") end)
 tabMisc.MouseButton1Click:Connect(function() showTab("Misc") end)
 
 -- Artifacts tab
@@ -493,14 +519,14 @@ do
 		end
 	end)
 
-	local row2 = makeRow(t, 3, 34)
+	local row2 = makeRow(t, 2, 34)
 	local antiBtn = makeButton(row2, "Anti AFK: OFF", Color3.fromRGB(95, 95, 95))
 	setAntiAfk = function(on)
 		antiOn = on == true
 		if antiOn then
 			antiBtn.Text = "Anti AFK: ON"
 			antiBtn.BackgroundColor3 = Color3.fromRGB(55, 145, 85)
-			antiAfk.start(10)
+			antiAfk.start(600)
 		else
 			antiBtn.Text = "Anti AFK: OFF"
 			antiBtn.BackgroundColor3 = Color3.fromRGB(95, 95, 95)
@@ -511,7 +537,6 @@ do
 		setAntiAfk(not antiOn)
 	end)
 
-	local shopToggleBtn = makeButton(row2, "Shop Buyer: OFF", Color3.fromRGB(95, 95, 95))
 	local openGeodeBtn = makeButton(row2, "Open Geode: OFF", Color3.fromRGB(95, 95, 95))
 	local function setGeodeToggleVisualImpl(on)
 		if on then
@@ -529,27 +554,19 @@ do
 	end)
 	setGeodeToggleVisual = setGeodeToggleVisualImpl
 	setGeodeToggleVisualImpl(geodeOpener.getEnabled())
+end
 
-	local inputRow = makeRow(t, 3, 34)
-	local itemBox = Instance.new("TextBox")
-	itemBox.Parent = inputRow
-	itemBox.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
-	itemBox.Font = Enum.Font.Gotham
-	itemBox.TextSize = 13
-	itemBox.TextColor3 = Color3.new(1, 1, 1)
-	itemBox.PlaceholderText = ""
-	itemBox.ClearTextOnFocus = false
-	itemBox.Text = ""
-	itemBox.BorderSizePixel = 0
-	Instance.new("UICorner", itemBox).CornerRadius = UDim.new(0, 6)
-
-	local addBtn = makeButton(inputRow, "Add", Color3.fromRGB(58, 120, 66))
-	local shopClearBtn = makeButton(inputRow, "Clear List", Color3.fromRGB(120, 62, 62))
+-- Shop tab
+do
+	local t = tabs["Shop"]
+	local row1 = makeRow(t, 2, 34)
+	local shopToggleBtn = makeButton(row1, "Shop Buyer: OFF", Color3.fromRGB(95, 95, 95))
+	local shopClearBtn = makeButton(row1, "Clear Selected", Color3.fromRGB(120, 62, 62))
 
 	local list = Instance.new("ScrollingFrame")
 	list.Parent = t
 	list.Position = UDim2.fromOffset(0, 0)
-	list.Size = UDim2.new(1, 0, 0, 150)
+	list.Size = UDim2.new(1, 0, 0, 170)
 	list.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
 	list.BorderSizePixel = 0
 	list.ScrollBarThickness = 6
@@ -564,27 +581,66 @@ do
 	pd.PaddingLeft = UDim.new(0, 6)
 	pd.PaddingRight = UDim.new(0, 6)
 
+	local selectedName
+	local rows = {}
+	local enabledItems = {}
+
+	local function rowColor(name)
+		if enabledItems[string.lower(name)] then
+			return Color3.fromRGB(150, 62, 62)
+		end
+		return (name == selectedName and Color3.fromRGB(70, 94, 138) or Color3.fromRGB(45, 45, 54))
+	end
+
+	local function paintRows()
+		for name, b in pairs(rows) do
+			if b.Parent then
+				b.BackgroundColor3 = rowColor(name)
+			end
+		end
+	end
+
 	local function refreshList()
-		for _, child in ipairs(list:GetChildren()) do
-			if child:IsA("TextLabel") then child:Destroy() end
+		for _, b in pairs(rows) do
+			if b.Parent then
+				b:Destroy()
+			end
 		end
-		local names = shopBuyer.getItems()
+		rows = {}
+
+		table.clear(enabledItems)
+		local selected = shopBuyer.getItems()
+		for i = 1, #selected do
+			enabledItems[string.lower(selected[i])] = true
+		end
+
+		local names = shopBuyer.getAvailableItems()
 		for i = 1, #names do
-			local label = Instance.new("TextLabel")
-			label.Parent = list
-			label.Size = UDim2.new(1, -8, 0, 22)
-			label.BackgroundColor3 = Color3.fromRGB(45, 45, 54)
-			label.BorderSizePixel = 0
-			label.Font = Enum.Font.Gotham
-			label.TextSize = 12
-			label.TextColor3 = Color3.fromRGB(240, 240, 240)
-			label.TextXAlignment = Enum.TextXAlignment.Left
-			label.Text = names[i]
-			local lp = Instance.new("UIPadding", label)
-			lp.PaddingLeft = UDim.new(0, 6)
+			local name = names[i]
+			local b = Instance.new("TextButton")
+			b.Parent = list
+			b.Size = UDim2.new(1, -8, 0, 24)
+			b.Text = name
+			b.TextXAlignment = Enum.TextXAlignment.Left
+			b.Font = Enum.Font.Gotham
+			b.TextSize = 13
+			b.TextColor3 = Color3.new(1, 1, 1)
+			b.BackgroundColor3 = rowColor(name)
+			b.BorderSizePixel = 0
+			Instance.new("UICorner", b).CornerRadius = UDim.new(0, 5)
+			local p = Instance.new("UIPadding", b)
+			p.PaddingLeft = UDim.new(0, 8)
+
+			b.MouseButton1Click:Connect(function()
+				selectedName = name
+				paintRows()
+			end)
+			rows[name] = b
 		end
+
 		task.defer(function()
 			list.CanvasSize = UDim2.new(0, 0, 0, lo.AbsoluteContentSize.Y + 12)
+			paintRows()
 		end)
 	end
 	refreshShopList = refreshList
@@ -606,19 +662,27 @@ do
 		setToggleVisual(on)
 	end)
 
-	addBtn.MouseButton1Click:Connect(function()
-		local name = itemBox.Text
-		name = name:gsub("^%s+", ""):gsub("%s+$", "")
-		if name == "" then return end
-		if shopBuyer.addItem(name) then
-			itemBox.Text = ""
+	shopClearBtn.MouseButton1Click:Connect(function()
+		shopBuyer.clearItems()
+		refreshList()
+	end)
+
+	local row2 = makeRow(t, 2, 34)
+	local enableBtn = makeButton(row2, "Enable Selected", Color3.fromRGB(58, 120, 66))
+	local disableBtn = makeButton(row2, "Disable Selected", Color3.fromRGB(120, 62, 62))
+
+	enableBtn.MouseButton1Click:Connect(function()
+		if not selectedName then return end
+		if shopBuyer.addItem(selectedName) then
 			refreshList()
 		end
 	end)
 
-	shopClearBtn.MouseButton1Click:Connect(function()
-		shopBuyer.clearItems()
-		refreshList()
+	disableBtn.MouseButton1Click:Connect(function()
+		if not selectedName then return end
+		if shopBuyer.removeItem(selectedName) then
+			refreshList()
+		end
 	end)
 
 	setToggleVisual(shopBuyer.getEnabled())
