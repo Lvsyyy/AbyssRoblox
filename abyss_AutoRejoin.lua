@@ -8,15 +8,26 @@ local CONFIG = {
 	-- Script to execute again after rejoin
 	SCRIPT_URL = "https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/abyss_QoL_gui.lua",
 	REJOIN_DELAY = 2,
+	REEXEC_DELAY = 8,
+	REEXEC_RETRIES = 8,
+	REEXEC_RETRY_DELAY = 3,
 }
 
 local function runConfiguredScript()
 	if type(CONFIG.SCRIPT_URL) ~= "string" or CONFIG.SCRIPT_URL == "" then
 		return
 	end
-	pcall(function()
-		loadstring(game:HttpGet(CONFIG.SCRIPT_URL))()
-	end)
+	task.wait(CONFIG.REEXEC_DELAY)
+	for _ = 1, CONFIG.REEXEC_RETRIES do
+		local ok = pcall(function()
+			loadstring(game:HttpGet(CONFIG.SCRIPT_URL))()
+		end)
+		if ok then
+			return
+		end
+		task.wait(CONFIG.REEXEC_RETRY_DELAY)
+	end
+	warn("Abyss AutoRejoin: failed to re-execute script after retries.")
 end
 
 local function queueScriptOnTeleport(code)
@@ -40,15 +51,29 @@ local function queueScriptOnTeleport(code)
 end
 
 local function buildReexecCode()
-	return ("pcall(function() loadstring(game:HttpGet(%q))() end)"):format(CONFIG.SCRIPT_URL)
+	return ([[
+local url = %q
+local startDelay = %d
+local retries = %d
+local retryDelay = %d
+task.wait(startDelay)
+for i = 1, retries do
+	local ok = pcall(function()
+		loadstring(game:HttpGet(url))()
+	end)
+	if ok then
+		break
+	end
+	task.wait(retryDelay)
+end
+]]):format(CONFIG.SCRIPT_URL, CONFIG.REEXEC_DELAY, CONFIG.REEXEC_RETRIES, CONFIG.REEXEC_RETRY_DELAY)
 end
 
 task.spawn(function()
 	local ok, teleportData = pcall(function()
 		return TeleportService:GetLocalPlayerTeleportData()
 	end)
-	if ok and type(teleportData) == "table" and teleportData.__abyss_reexec == true then
-		task.wait(2)
+if ok and type(teleportData) == "table" and teleportData.__abyss_reexec == true then
 		runConfiguredScript()
 	end
 end)
