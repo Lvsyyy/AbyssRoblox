@@ -1,6 +1,6 @@
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
-local TeleportService = game:GetService("TeleportService")
+local RS = game:GetService("ReplicatedStorage")
 
 local lp = Players.LocalPlayer
 local pg = lp:WaitForChild("PlayerGui")
@@ -39,6 +39,42 @@ local getArtifactAutoDeleteList
 local setShopToggleVisual
 local refreshShopList
 local setGeodeToggleVisual
+local setAutoDailyToggleVisual
+
+local DailyClaimRF = RS:WaitForChild("common")
+	:WaitForChild("packages")
+	:WaitForChild("Knit")
+	:WaitForChild("Services")
+	:WaitForChild("DailyRewardService")
+	:WaitForChild("RF")
+	:WaitForChild("Claim")
+
+local autoDailyOn = false
+local autoDailyRunning = false
+
+local function startAutoDailyLoop()
+	if autoDailyRunning then return end
+	autoDailyRunning = true
+	task.spawn(function()
+		while autoDailyOn do
+			pcall(function()
+				DailyClaimRF:InvokeServer()
+			end)
+			task.wait(30)
+		end
+		autoDailyRunning = false
+	end)
+end
+
+local function setAutoDaily(on)
+	autoDailyOn = on == true
+	if autoDailyOn then
+		startAutoDailyLoop()
+	end
+	if setAutoDailyToggleVisual then
+		setAutoDailyToggleVisual(autoDailyOn)
+	end
+end
 
 local old = pg:FindFirstChild("AbyssQoLGui")
 if old then old:Destroy() end
@@ -128,91 +164,6 @@ local function makeButton(parent, text, color)
 	Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
 	return b
 end
-
-local visitedServers = (getgenv and getgenv().__abyssVisitedServers) or {}
-if getgenv then
-	getgenv().__abyssVisitedServers = visitedServers
-end
-visitedServers[game.JobId] = true
-
-local rng = Random.new()
-
-local function getHopCandidates(maxPages)
-	local unseen = {}
-	local seen = {}
-	local cursor
-
-	for _ = 1, maxPages do
-		local url = ("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100"):format(game.PlaceId)
-		if type(cursor) == "string" and cursor ~= "" then
-			url = url .. "&cursor=" .. HttpService:UrlEncode(cursor)
-		end
-
-		local okBody, body = pcall(function()
-			return game:HttpGet(url)
-		end)
-		if not okBody or type(body) ~= "string" or body == "" then
-			break
-		end
-
-		local okJson, decoded = pcall(function()
-			return HttpService:JSONDecode(body)
-		end)
-		if not okJson or type(decoded) ~= "table" then
-			break
-		end
-
-		local list = decoded.data
-		if type(list) == "table" then
-			for i = 1, #list do
-				local srv = list[i]
-				local id = srv and srv.id
-				local playing = srv and srv.playing
-				local maxPlayers = srv and srv.maxPlayers
-				if type(id) == "string"
-					and id ~= ""
-					and id ~= game.JobId
-					and type(playing) == "number"
-					and type(maxPlayers) == "number"
-					and playing < maxPlayers
-				then
-					if visitedServers[id] then
-						seen[#seen + 1] = id
-					else
-						unseen[#unseen + 1] = id
-					end
-				end
-			end
-		end
-
-		cursor = decoded.nextPageCursor
-		if type(cursor) ~= "string" or cursor == "" then
-			break
-		end
-	end
-
-	if #unseen > 0 then
-		return unseen
-	end
-	return seen
-end
-
-local function hopRandomServer()
-	local candidates = getHopCandidates(4)
-	if #candidates == 0 then
-		return pcall(function()
-			TeleportService:Teleport(game.PlaceId, lp)
-		end)
-	end
-
-	local targetId = candidates[rng:NextInteger(1, #candidates)]
-	visitedServers[targetId] = true
-
-	return pcall(function()
-		TeleportService:TeleportToPlaceInstance(game.PlaceId, targetId, lp)
-	end)
-end
-
 
 local tabs = {
 	Artifacts = makeTabContainer(),
@@ -508,9 +459,21 @@ do
 		function() sellAll.sellAll() end
 	)
 
-	makeButton(row1, "Server Hopper", Color3.fromRGB(70, 94, 138)).MouseButton1Click:Connect(function()
-		hopRandomServer()
+	local autoDailyBtn = makeButton(row1, "Auto Daily: OFF", Color3.fromRGB(95, 95, 95))
+	local function setAutoDailyToggleVisualImpl(on)
+		if on then
+			autoDailyBtn.Text = "Auto Daily: ON"
+			autoDailyBtn.BackgroundColor3 = Color3.fromRGB(55, 145, 85)
+		else
+			autoDailyBtn.Text = "Auto Daily: OFF"
+			autoDailyBtn.BackgroundColor3 = Color3.fromRGB(95, 95, 95)
+		end
+	end
+	setAutoDailyToggleVisual = setAutoDailyToggleVisualImpl
+	autoDailyBtn.MouseButton1Click:Connect(function()
+		setAutoDaily(not autoDailyOn)
 	end)
+	setAutoDailyToggleVisualImpl(autoDailyOn)
 
 	makeButton(row1, "Save Settings", Color3.fromRGB(70, 94, 138)).MouseButton1Click:Connect(function()
 		if not writefile then return end
@@ -522,6 +485,7 @@ do
 			shopItems = shopBuyer.getItems(),
 			shopEnabled = shopBuyer.getEnabled(),
 			geodeEnabled = geodeOpener.getEnabled(),
+			autoDaily = autoDailyOn,
 		}
 		local ok, data = pcall(function() return HttpService:JSONEncode(payload) end)
 		if ok and type(data) == "string" then
@@ -699,11 +663,17 @@ local function loadSavedSettings()
 		if decoded.geodeEnabled ~= nil then
 			geodeOpener.setEnabled(decoded.geodeEnabled == true)
 		end
+		if decoded.autoDaily ~= nil then
+			setAutoDaily(decoded.autoDaily == true)
+		end
 		if setShopToggleVisual then
 			setShopToggleVisual(shopBuyer.getEnabled())
 		end
 		if setGeodeToggleVisual then
 			setGeodeToggleVisual(geodeOpener.getEnabled())
+		end
+		if setAutoDailyToggleVisual then
+			setAutoDailyToggleVisual(autoDailyOn)
 		end
 		if refreshShopList then
 			refreshShopList()
