@@ -4,6 +4,9 @@ local RS = game:GetService("ReplicatedStorage")
 
 local lp = Players.LocalPlayer
 local pg = lp:WaitForChild("PlayerGui")
+local Common = RS:WaitForChild("common")
+local Assets = Common:WaitForChild("assets")
+local KnitServices = Common:WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services")
 
 local BASE = "https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/"
 local SAVE_PATH = "abyss_settings.json"
@@ -41,13 +44,11 @@ local refreshShopList
 local setGeodeToggleVisual
 local setAutoDailyToggleVisual
 
-local DailyClaimRF = RS:WaitForChild("common")
-	:WaitForChild("packages")
-	:WaitForChild("Knit")
-	:WaitForChild("Services")
+local DailyClaimRF = KnitServices
 	:WaitForChild("DailyRewardService")
 	:WaitForChild("RF")
 	:WaitForChild("Claim")
+local FishAssets = Assets:WaitForChild("fish")
 
 local autoDailyOn = false
 local autoDailyConn
@@ -381,21 +382,6 @@ do
 	local toggleBtn = makeButton(row2, "Auto Delete: OFF", Color3.fromRGB(95, 95, 95))
 	local clearBtn = makeButton(row2, "Clear List", Color3.fromRGB(120, 62, 62))
 
-	local inputRow = makeRow(t, 2, 34)
-	local nameBox = Instance.new("TextBox")
-	nameBox.Parent = inputRow
-	nameBox.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
-	nameBox.Font = Enum.Font.Gotham
-	nameBox.TextSize = 13
-	nameBox.TextColor3 = Color3.new(1, 1, 1)
-	nameBox.PlaceholderText = ""
-	nameBox.ClearTextOnFocus = false
-	nameBox.Text = ""
-	nameBox.BorderSizePixel = 0
-	Instance.new("UICorner", nameBox).CornerRadius = UDim.new(0, 6)
-
-	local addBtn = makeButton(inputRow, "Add", Color3.fromRGB(58, 120, 66))
-
 	local list = Instance.new("ScrollingFrame")
 	list.Parent = t
 	list.Position = UDim2.fromOffset(0, 0)
@@ -414,27 +400,79 @@ do
 	pd.PaddingLeft = UDim.new(0, 6)
 	pd.PaddingRight = UDim.new(0, 6)
 
-	local function refreshList()
-		for _, child in ipairs(list:GetChildren()) do
-			if child:IsA("TextLabel") then child:Destroy() end
+	local selectedName
+	local rows = {}
+	local enabledNames = {}
+
+	local function rowColor(name)
+		if enabledNames[name] then
+			return Color3.fromRGB(150, 62, 62)
 		end
+		return (name == selectedName and Color3.fromRGB(70, 94, 138) or Color3.fromRGB(45, 45, 54))
+	end
+
+	local function paintRows()
+		for name, b in pairs(rows) do
+			if b.Parent then
+				b.BackgroundColor3 = rowColor(name)
+			end
+		end
+	end
+
+	local function getFishModelNames()
+		local out = {}
+		local kids = FishAssets:GetChildren()
+		for i = 1, #kids do
+			local inst = kids[i]
+			if inst:IsA("Model") then
+				out[#out + 1] = inst.Name
+			end
+		end
+		table.sort(out)
+		return out
+	end
+
+	local function refreshList()
+		for _, b in pairs(rows) do
+			if b.Parent then
+				b:Destroy()
+			end
+		end
+		rows = {}
+
+		table.clear(enabledNames)
 		local names = fishAutoDelete.getNames()
 		for i = 1, #names do
-			local label = Instance.new("TextLabel")
-			label.Parent = list
-			label.Size = UDim2.new(1, -8, 0, 22)
-			label.BackgroundColor3 = Color3.fromRGB(45, 45, 54)
-			label.BorderSizePixel = 0
-			label.Font = Enum.Font.Gotham
-			label.TextSize = 12
-			label.TextColor3 = Color3.fromRGB(240, 240, 240)
-			label.TextXAlignment = Enum.TextXAlignment.Left
-			label.Text = names[i]
-			local lp = Instance.new("UIPadding", label)
-			lp.PaddingLeft = UDim.new(0, 6)
+			enabledNames[names[i]] = true
 		end
+
+		local fishNames = getFishModelNames()
+		for i = 1, #fishNames do
+			local name = fishNames[i]
+			local b = Instance.new("TextButton")
+			b.Parent = list
+			b.Size = UDim2.new(1, -8, 0, 24)
+			b.Text = name
+			b.TextXAlignment = Enum.TextXAlignment.Left
+			b.Font = Enum.Font.Gotham
+			b.TextSize = 13
+			b.TextColor3 = Color3.new(1, 1, 1)
+			b.BackgroundColor3 = rowColor(name)
+			b.BorderSizePixel = 0
+			Instance.new("UICorner", b).CornerRadius = UDim.new(0, 5)
+			local p = Instance.new("UIPadding", b)
+			p.PaddingLeft = UDim.new(0, 8)
+
+			b.MouseButton1Click:Connect(function()
+				selectedName = name
+				paintRows()
+			end)
+			rows[name] = b
+		end
+
 		task.defer(function()
 			list.CanvasSize = UDim2.new(0, 0, 0, lo.AbsoluteContentSize.Y + 12)
+			paintRows()
 		end)
 	end
 	refreshFishList = refreshList
@@ -456,14 +494,28 @@ do
 		setToggleVisual(on)
 	end)
 
-	addBtn.MouseButton1Click:Connect(function()
-		local name = nameBox.Text
-		name = name:gsub("^%s+", ""):gsub("%s+$", "")
-		if name == "" then return end
-		if fishAutoDelete.addName(name) then
-			nameBox.Text = ""
+	local row3 = makeRow(t, 2, 34)
+	local enableBtn = makeButton(row3, "Enable Selected", Color3.fromRGB(58, 120, 66))
+	local disableBtn = makeButton(row3, "Disable Selected", Color3.fromRGB(120, 62, 62))
+
+	enableBtn.MouseButton1Click:Connect(function()
+		if not selectedName then return end
+		if fishAutoDelete.addName(selectedName) then
 			refreshList()
 		end
+	end)
+
+	disableBtn.MouseButton1Click:Connect(function()
+		if not selectedName then return end
+		local names = fishAutoDelete.getNames()
+		local out = {}
+		for i = 1, #names do
+			if names[i] ~= selectedName then
+				out[#out + 1] = names[i]
+			end
+		end
+		fishAutoDelete.setNames(out)
+		refreshList()
 	end)
 
 	clearBtn.MouseButton1Click:Connect(function()
@@ -585,7 +637,7 @@ do
 
 	local function rowColor(name)
 		if enabledItems[string.lower(name)] then
-			return Color3.fromRGB(150, 62, 62)
+			return Color3.fromRGB(58, 120, 66)
 		end
 		return (name == selectedName and Color3.fromRGB(70, 94, 138) or Color3.fromRGB(45, 45, 54))
 	end
