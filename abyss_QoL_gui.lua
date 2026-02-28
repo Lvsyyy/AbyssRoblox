@@ -60,8 +60,9 @@ local FishAssets = Common:WaitForChild("assets"):WaitForChild("fish")
 local autoDailyOn = false
 local autoDailyConn
 local lastAutoDailyClaimAt = 0
+local DAILY_READY_TEXT = "Next reward in: <font color='#ffffff'><b>00:00</b></font>"
 
-local function getDailyNextReward()
+local function getDailyLabel()
 	local main = pg:FindFirstChild("Main")
 	if not main then return nil end
 	local center = main:FindFirstChild("Center")
@@ -69,17 +70,19 @@ local function getDailyNextReward()
 	local daily = center:FindFirstChild("DailyReward")
 	if not daily then return nil end
 	local nextReward = daily:FindFirstChild("NextReward")
-	if nextReward and nextReward:IsA("Frame") then
-		return nextReward
+	if not nextReward then return nil end
+	local label = nextReward:FindFirstChild("Label")
+	if label and label:IsA("TextLabel") then
+		return label
 	end
 	return nil
 end
 
 local function tryClaimDaily()
 	if not autoDailyOn then return end
-	local nextReward = getDailyNextReward()
-	if not nextReward then return end
-	if nextReward.Visible == false and os.clock() - lastAutoDailyClaimAt > 3 then
+	local label = getDailyLabel()
+	if not label then return end
+	if label.Text == DAILY_READY_TEXT and os.clock() - lastAutoDailyClaimAt > 3 then
 		lastAutoDailyClaimAt = os.clock()
 		pcall(function()
 			DailyClaimRF:InvokeServer()
@@ -94,9 +97,9 @@ local function setAutoDaily(on)
 		autoDailyConn = nil
 	end
 	if autoDailyOn then
-		local nextReward = getDailyNextReward()
-		if nextReward then
-			autoDailyConn = nextReward:GetPropertyChangedSignal("Visible"):Connect(tryClaimDaily)
+		local label = getDailyLabel()
+		if label then
+			autoDailyConn = label:GetPropertyChangedSignal("Text"):Connect(tryClaimDaily)
 		end
 		tryClaimDaily()
 	end
