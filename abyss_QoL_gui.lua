@@ -6,6 +6,7 @@ local lp = Players.LocalPlayer
 local pg = lp:WaitForChild("PlayerGui")
 local Common = RS:WaitForChild("common")
 local KnitServices = Common:WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services")
+local Knit = require(Common:WaitForChild("packages"):WaitForChild("Knit"))
 
 local BASE = "https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/"
 local SAVE_PATH = "abyss_settings.json"
@@ -59,8 +60,39 @@ local FishAssets = Common:WaitForChild("assets"):WaitForChild("fish")
 
 local autoDailyOn = false
 local autoDailyConn
+local autoDailyTimeConn
+local autoDailyLoopId = 0
 local lastAutoDailyClaimAt = 0
 local DAILY_READY_TEXT = "Next reward in: <font color='#ffffff'><b>00:00</b></font>"
+local dataController
+
+local function getDailyRewardsData()
+	if not dataController then
+		pcall(function()
+			dataController = Knit.GetController("DataController")
+		end)
+	end
+	if not dataController then return nil end
+
+	local ok, replica = pcall(function()
+		return dataController:GetReplica()
+	end)
+	if not ok or not replica or not replica.Data then
+		return nil
+	end
+	return replica.Data.daily_rewards
+end
+
+local function isDailyReadyByData()
+	local daily = getDailyRewardsData()
+	if type(daily) ~= "table" then return nil end
+	if type(daily.last_claim) ~= "number" then return nil end
+
+	local timeNow = workspace:GetAttribute("TimeNow")
+	if type(timeNow) ~= "number" then return nil end
+
+	return (daily.last_claim + 86400 - timeNow) <= 0
+end
 
 local function getDailyLabel()
 	local main = pg:FindFirstChild("Main")
@@ -80,9 +112,10 @@ end
 
 local function tryClaimDaily()
 	if not autoDailyOn then return end
+	local readyByData = isDailyReadyByData()
 	local label = getDailyLabel()
-	if not label then return end
-	if label.Text == DAILY_READY_TEXT and os.clock() - lastAutoDailyClaimAt > 3 then
+	local readyByLabel = (label and label.Text == DAILY_READY_TEXT) and true or false
+	if (readyByData == true or readyByLabel) and os.clock() - lastAutoDailyClaimAt > 3 then
 		lastAutoDailyClaimAt = os.clock()
 		pcall(function()
 			DailyClaimRF:InvokeServer()
@@ -96,11 +129,24 @@ local function setAutoDaily(on)
 		autoDailyConn:Disconnect()
 		autoDailyConn = nil
 	end
+	if autoDailyTimeConn then
+		autoDailyTimeConn:Disconnect()
+		autoDailyTimeConn = nil
+	end
+	autoDailyLoopId = autoDailyLoopId + 1
 	if autoDailyOn then
 		local label = getDailyLabel()
 		if label then
 			autoDailyConn = label:GetPropertyChangedSignal("Text"):Connect(tryClaimDaily)
 		end
+		autoDailyTimeConn = workspace:GetAttributeChangedSignal("TimeNow"):Connect(tryClaimDaily)
+		local loopId = autoDailyLoopId
+		task.spawn(function()
+			while autoDailyOn and autoDailyLoopId == loopId do
+				tryClaimDaily()
+				task.wait(1)
+			end
+		end)
 		tryClaimDaily()
 	end
 	if setAutoDailyToggleVisual then
