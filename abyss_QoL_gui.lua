@@ -506,7 +506,7 @@ do
 	local row2 = makeRow(t, 3, 34)
 	local addBtn = makeButton(row2, "Add", BTN_GREEN)
 	local delBtn = makeButton(row2, "Remove", BTN_RED)
-	local toggleBtn = makeButton(row2, "Toggle: OFF", BTN_RED)
+	local toggleBtn = makeButton(row2, "Delete Fish: OFF", BTN_RED)
 
 	local list, lo = makeScrollingList(t, getListHeight({ 34 }))
 	local selectedFish
@@ -574,10 +574,10 @@ do
 
 	local function setToggleVisual(on)
 		if on then
-			toggleBtn.Text = "Toggle: ON"
+			toggleBtn.Text = "Delete Fish: ON"
 			toggleBtn.BackgroundColor3 = BTN_GREEN
 		else
-			toggleBtn.Text = "Toggle: OFF"
+			toggleBtn.Text = "Delete Fish: OFF"
 			toggleBtn.BackgroundColor3 = BTN_RED
 		end
 	end
@@ -745,7 +745,7 @@ do
 	local row1 = makeRow(t, 3, 34)
 	local addBtn = makeButton(row1, "Add", BTN_GREEN)
 	local removeBtn = makeButton(row1, "Remove", BTN_RED)
-	local shopToggleBtn = makeButton(row1, "Toggle: OFF", BTN_RED)
+	local shopToggleBtn = makeButton(row1, "Shop Buyer: OFF", BTN_RED)
 
 	local list, lo = makeScrollingList(t, getListHeight({ 34 }))
 
@@ -801,10 +801,10 @@ do
 
 	local function setToggleVisual(on)
 		if on then
-			shopToggleBtn.Text = "Toggle: ON"
+			shopToggleBtn.Text = "Shop Buyer: ON"
 			shopToggleBtn.BackgroundColor3 = BTN_GREEN
 		else
-			shopToggleBtn.Text = "Toggle: OFF"
+			shopToggleBtn.Text = "Shop Buyer: OFF"
 			shopToggleBtn.BackgroundColor3 = BTN_RED
 		end
 	end
