@@ -42,6 +42,7 @@ local getArtifactAutoDeleteList
 local setShopToggleVisual
 local refreshShopList
 local setGeodeToggleVisual
+local setGeodeOnlyToggleVisual
 local setAutoDailyToggleVisual
 
 local BTN_GREEN = Color3.fromRGB(46, 140, 87)
@@ -56,12 +57,19 @@ local DailyClaimRF = KnitServices
 	:WaitForChild("DailyRewardService")
 	:WaitForChild("RF")
 	:WaitForChild("Claim")
+local MinigameRF = KnitServices
+	:WaitForChild("MinigameService")
+	:WaitForChild("RF")
+local MinigameUpdateRF = MinigameRF:WaitForChild("Update")
+local CancelMinigameRF = MinigameRF:WaitForChild("CancelMinigame")
 local FishAssets = Common:WaitForChild("assets"):WaitForChild("fish")
 
 local autoDailyOn = false
 local autoDailyConn
 local autoDailyTimeConn
 local autoDailyLoopId = 0
+local geodeOnlyOn = false
+local geodeOnlyHookInstalled = false
 local lastAutoDailyClaimAt = 0
 local DAILY_READY_TEXT = "Next reward in: <font color='#ffffff'><b>00:00</b></font>"
 local dataController
@@ -151,6 +159,54 @@ local function setAutoDaily(on)
 	end
 	if setAutoDailyToggleVisual then
 		setAutoDailyToggleVisual(autoDailyOn)
+	end
+end
+
+local function shouldCancelMinigame(payload)
+	if type(payload) ~= "table" then return false end
+	local rewards = payload.rewards
+	if type(rewards) ~= "table" then return false end
+	return next(rewards) == nil
+end
+
+local function installGeodeOnlyHook()
+	if geodeOnlyHookInstalled then return true end
+	if type(hookmetamethod) ~= "function" or type(getnamecallmethod) ~= "function" then
+		return false
+	end
+	local wrap = type(newcclosure) == "function" and newcclosure or function(f) return f end
+
+	local oldNamecall
+	oldNamecall = hookmetamethod(game, "__namecall", wrap(function(self, ...)
+		local method = getnamecallmethod()
+		local args = { ... }
+		if geodeOnlyOn and method == "InvokeServer" and self == MinigameUpdateRF then
+			local action = args[1]
+			local payload = args[2]
+			if action == "ProgressUpdate" and shouldCancelMinigame(payload) then
+				task.defer(function()
+					pcall(function()
+						CancelMinigameRF:InvokeServer()
+					end)
+				end)
+			end
+		end
+		return oldNamecall(self, ...)
+	end))
+
+	geodeOnlyHookInstalled = true
+	return true
+end
+
+local function setGeodeOnly(on)
+	geodeOnlyOn = on == true
+	if geodeOnlyOn then
+		if not installGeodeOnlyHook() then
+			geodeOnlyOn = false
+		end
+	end
+	if setGeodeOnlyToggleVisual then
+		setGeodeOnlyToggleVisual(geodeOnlyOn)
 	end
 end
 
@@ -404,7 +460,7 @@ do
 	populateArtifacts()
 
 	local row3 = makeRow(t, 2, 34)
-	local enableDeleteBtn = makeButton(row3, "Enable Delete", BTN_GREEN)
+	local enableDeleteBtn = makeButton(row3, "Add", BTN_GREEN)
 	enableDeleteBtn.MouseButton1Click:Connect(
 		function()
 			if not sel then return end
@@ -413,7 +469,7 @@ do
 			paint()
 		end
 	)
-	local disableDeleteBtn = makeButton(row3, "Disable Delete", BTN_RED)
+	local disableDeleteBtn = makeButton(row3, "Remove", BTN_RED)
 	disableDeleteBtn.MouseButton1Click:Connect(
 		function()
 			if not sel then return end
@@ -448,20 +504,9 @@ end
 do
 	local t = tabs["Deletion"]
 	local row2 = makeRow(t, 3, 34)
-	local nameBox = Instance.new("TextBox")
-	nameBox.Parent = row2
-	nameBox.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
-	nameBox.Font = Enum.Font.Gotham
-	nameBox.TextSize = 14
-	nameBox.TextColor3 = Color3.new(1, 1, 1)
-	nameBox.PlaceholderText = ""
-	nameBox.ClearTextOnFocus = false
-	nameBox.Text = ""
-	nameBox.BorderSizePixel = 0
-	Instance.new("UICorner", nameBox).CornerRadius = UDim.new(0, 6)
-
 	local addBtn = makeButton(row2, "Add", BTN_GREEN)
-	local toggleBtn = makeButton(row2, "Auto Delete: OFF", BTN_RED)
+	local delBtn = makeButton(row2, "Remove", BTN_RED)
+	local toggleBtn = makeButton(row2, "Toggle: OFF", BTN_RED)
 
 	local list, lo = makeScrollingList(t, getListHeight({ 34 }))
 	local selectedFish
@@ -515,7 +560,6 @@ do
 			local name = fishNames[i]
 			local b = makeSelectableRow(list, name, rowColor(name), function()
 				selectedFish = name
-				nameBox.Text = name
 				paintRows()
 			end)
 			rows[name] = b
@@ -530,21 +574,38 @@ do
 
 	local function setToggleVisual(on)
 		if on then
-			toggleBtn.Text = "Auto Delete: ON"
+			toggleBtn.Text = "Toggle: ON"
 			toggleBtn.BackgroundColor3 = BTN_GREEN
 		else
-			toggleBtn.Text = "Auto Delete: OFF"
+			toggleBtn.Text = "Toggle: OFF"
 			toggleBtn.BackgroundColor3 = BTN_RED
 		end
 	end
 	setFishToggleVisual = setToggleVisual
 
 	addBtn.MouseButton1Click:Connect(function()
-		local name = nameBox.Text
-		name = name:gsub("^%s+", ""):gsub("%s+$", "")
-		if name == "" then return end
-		if fishAutoDelete.addName(name) then
-			nameBox.Text = ""
+		if not selectedFish then return end
+		if fishAutoDelete.addName(selectedFish) then
+			refreshList()
+		end
+	end)
+
+	delBtn.MouseButton1Click:Connect(function()
+		if not selectedFish then return end
+		local names = fishAutoDelete.getNames()
+		local keep = {}
+		local removed = false
+		local target = string.lower(selectedFish)
+		for i = 1, #names do
+			local n = names[i]
+			if string.lower(n) ~= target then
+				keep[#keep + 1] = n
+			else
+				removed = true
+			end
+		end
+		if removed then
+			fishAutoDelete.setNames(keep)
 			refreshList()
 		end
 	end)
@@ -573,7 +634,7 @@ do
 		function() artifactSets.equipSpeedSet() end
 	)
 
-	local row2 = makeRow(t, 3, 34)
+	local row2 = makeRow(t, 2, 34)
 	local autoDailyBtn = makeButton(row2, "Auto Daily: OFF", BTN_RED)
 	local function setAutoDailyToggleVisualImpl(on)
 		if on then
@@ -607,7 +668,8 @@ do
 		setAntiAfk(not antiOn)
 	end)
 
-	local openGeodeBtn = makeButton(row2, "Open Geode: OFF", BTN_RED)
+	local row3 = makeRow(t, 2, 34)
+	local openGeodeBtn = makeButton(row3, "Open Geode: OFF", BTN_RED)
 	local function setGeodeToggleVisualImpl(on)
 		if on then
 			openGeodeBtn.Text = "Open Geode: ON"
@@ -622,14 +684,31 @@ do
 		geodeOpener.setEnabled(on)
 		setGeodeToggleVisualImpl(on)
 	end)
+
+	local geodeOnlyBtn = makeButton(row3, "Geode only: OFF", BTN_RED)
+	local function setGeodeOnlyToggleVisualImpl(on)
+		if on then
+			geodeOnlyBtn.Text = "Geode only: ON"
+			geodeOnlyBtn.BackgroundColor3 = BTN_GREEN
+		else
+			geodeOnlyBtn.Text = "Geode only: OFF"
+			geodeOnlyBtn.BackgroundColor3 = BTN_RED
+		end
+	end
+	setGeodeOnlyToggleVisual = setGeodeOnlyToggleVisualImpl
+	geodeOnlyBtn.MouseButton1Click:Connect(function()
+		setGeodeOnly(not geodeOnlyOn)
+	end)
+
 	setGeodeToggleVisual = setGeodeToggleVisualImpl
 	setGeodeToggleVisualImpl(geodeOpener.getEnabled())
+	setGeodeOnlyToggleVisualImpl(geodeOnlyOn)
 
-	local row3 = makeRow(t, 2, 34)
-	makeButton(row3, "Sell All", BTN_PURPLE).MouseButton1Click:Connect(
+	local row4 = makeRow(t, 2, 34)
+	makeButton(row4, "Sell All", BTN_PURPLE).MouseButton1Click:Connect(
 		function() sellAll.sellAll() end
 	)
-	makeButton(row3, "Save Settings", BTN_PURPLE).MouseButton1Click:Connect(function()
+	makeButton(row4, "Save Settings", BTN_PURPLE).MouseButton1Click:Connect(function()
 		if not writefile then return end
 		local payload = {
 			fishNames = fishAutoDelete.getNames(),
@@ -639,6 +718,7 @@ do
 			shopItems = shopBuyer.getItems(),
 			shopEnabled = shopBuyer.getEnabled(),
 			geodeEnabled = geodeOpener.getEnabled(),
+			geodeOnly = geodeOnlyOn,
 			autoDaily = autoDailyOn,
 		}
 		local ok, data = pcall(function() return HttpService:JSONEncode(payload) end)
@@ -647,14 +727,14 @@ do
 		end
 	end)
 
-	local row4 = makeRow(t, 2, 34)
-	makeButton(row4, "Deposit", BTN_GREEN).MouseButton1Click:Connect(
+	local row5 = makeRow(t, 2, 34)
+	makeButton(row5, "Deposit", BTN_GREEN).MouseButton1Click:Connect(
 		function()
 			portableStash.rebuildHotbarFishCache()
 			portableStash.depositFishByWeightDesc()
 		end
 	)
-	makeButton(row4, "Withdraw", BTN_RED).MouseButton1Click:Connect(
+	makeButton(row5, "Withdraw", BTN_RED).MouseButton1Click:Connect(
 		function() portableStash.withdrawAll() end
 	)
 end
@@ -663,9 +743,9 @@ end
 do
 	local t = tabs["Shop"]
 	local row1 = makeRow(t, 3, 34)
-	local shopToggleBtn = makeButton(row1, "Shop Buyer: OFF", BTN_RED)
-	local enableBtn = makeButton(row1, "Enable Selected", BTN_GREEN)
-	local disableBtn = makeButton(row1, "Disable Selected", BTN_RED)
+	local addBtn = makeButton(row1, "Add", BTN_GREEN)
+	local removeBtn = makeButton(row1, "Remove", BTN_RED)
+	local shopToggleBtn = makeButton(row1, "Toggle: OFF", BTN_RED)
 
 	local list, lo = makeScrollingList(t, getListHeight({ 34 }))
 
@@ -721,10 +801,10 @@ do
 
 	local function setToggleVisual(on)
 		if on then
-			shopToggleBtn.Text = "Shop Buyer: ON"
+			shopToggleBtn.Text = "Toggle: ON"
 			shopToggleBtn.BackgroundColor3 = BTN_GREEN
 		else
-			shopToggleBtn.Text = "Shop Buyer: OFF"
+			shopToggleBtn.Text = "Toggle: OFF"
 			shopToggleBtn.BackgroundColor3 = BTN_RED
 		end
 	end
@@ -736,14 +816,14 @@ do
 		setToggleVisual(on)
 	end)
 
-	enableBtn.MouseButton1Click:Connect(function()
+	addBtn.MouseButton1Click:Connect(function()
 		if not selectedName then return end
 		if shopBuyer.addItem(selectedName) then
 			refreshList()
 		end
 	end)
 
-	disableBtn.MouseButton1Click:Connect(function()
+	removeBtn.MouseButton1Click:Connect(function()
 		if not selectedName then return end
 		if shopBuyer.removeItem(selectedName) then
 			refreshList()
@@ -791,6 +871,9 @@ local function loadSavedSettings()
 		end
 		if decoded.geodeEnabled ~= nil then
 			geodeOpener.setEnabled(decoded.geodeEnabled == true)
+		end
+		if decoded.geodeOnly ~= nil then
+			setGeodeOnly(decoded.geodeOnly == true)
 		end
 		if decoded.autoDaily ~= nil then
 			setAutoDaily(decoded.autoDaily == true)
