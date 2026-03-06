@@ -7,17 +7,20 @@ If you use this inside a public script / hub do not obfuscate it support Open So
 ## Files
 | File | Description |
 | --- | --- |
-| `sellAll.lua` | Sells all inventory after equipping loadout 4. |
-| `portableStash.lua` | Deposits and withdraws fish with weight-based ordering. |
-| `artifactSets.lua` | Equips weight, damage, or speed artifact loadouts. |
+| `abyss_sellAll.lua` | Sells all inventory after equipping loadout 4. |
+| `abyss_portableStash.lua` | Deposits and withdraws fish with weight-based ordering. |
+| `abyss_artifactSets.lua` | Equips weight, damage, or speed artifact loadouts. |
 | `antiAfk.lua` | Sends a periodic key press to prevent AFK. |
-| `artifactScanner.lua` | Returns a sorted list of artifact names from the library. |
+| `abyss_artifactScanner.lua` | Returns a sorted list of artifact names from the library. |
 | `artifactAutoDelete.lua` | Enables or disables auto-delete for a selected artifact. |
-| `fishAutoDelete.lua` | Manages fish name auto-delete with toggle and cache watchers. |
-| `shopBuyer.lua` | Auto-buys selected merchant items on a loop. |
+| `abyss_fishAutoDelete.lua` | Manages fish name auto-delete with toggle and cache watchers. |
+| `abyss_shopBuyer.lua` | Auto-buys selected merchant items when merchants restock. |
 | `abyss_UpdateArtifacts.lua` | Updates each artifact set with the best matching stats. |
 | `abyss_DeleteBadArtifacts.lua` | Deletes non-protected artifacts not in the top 3 of each category. |
 | `abyss_GeodeOpener.lua` | Opens Coconut geodes up to 99 based on backpack/hotbar count; falls back to Rooted. |
+| `abyss_geode_only.lua` | Cancels non-reward minigame progress updates for geode-only flow. |
+| `abyss_auto_daily.lua` | Auto-claims daily rewards when available. |
+| `abyss_settings.lua` | Saves/loads GUI settings JSON with legacy fallback parsing. |
 | `abyss_AutoRejoin.lua` | Rejoins after kick/error prompt and re-executes the configured script on teleport. |
 | `abyss_QoL_gui.lua` | Tabbed GUI that loads and calls the other scripts via loadstring. |
 
