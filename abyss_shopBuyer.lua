@@ -7,11 +7,14 @@ local OtherAssets = RS.common.assets.other
 
 local itemsSet = {}
 local itemsList = {}
+local itemKeys = {}
+local selectedCount = 0
 local availableItems = {}
 
 local enabled = false
 local started = false
 local connections = {}
+local merchantRefs = {}
 
 local function normalize(s)
 	return string.lower(s)
@@ -36,22 +39,45 @@ local function buildAvailableItems()
 	table.sort(availableItems)
 end
 
-local function isStocked(merchant)
-	local label = merchant:FindFirstChild("Folder")
-		and merchant.Folder:FindFirstChild("Sign")
-		and merchant.Folder.Sign:FindFirstChild("Time")
-		and merchant.Folder.Sign.Time:FindFirstChild("SurfaceGui")
-		and merchant.Folder.Sign.Time.SurfaceGui:FindFirstChild("Label")
+local function rebuildItemKeys()
+	table.clear(itemKeys)
+	for key in pairs(itemsSet) do
+		itemKeys[#itemKeys + 1] = key
+	end
+	selectedCount = #itemKeys
+end
 
-	return label and label:IsA("TextLabel") and label.Text == "00:00"
+local function getMerchantRefs(merchant)
+	local cached = merchantRefs[merchant]
+	if cached then
+		return cached.label, cached.tableRoot
+	end
+
+	local folder = merchant:FindFirstChild("Folder")
+	local sign = folder and folder:FindFirstChild("Sign")
+	local time = sign and sign:FindFirstChild("Time")
+	local surface = time and time:FindFirstChild("SurfaceGui")
+	local label = surface and surface:FindFirstChild("Label")
+	local tableRoot = folder and folder:FindFirstChild("Table")
+
+	cached = {
+		label = (label and label:IsA("TextLabel")) and label or nil,
+		tableRoot = tableRoot,
+	}
+	merchantRefs[merchant] = cached
+	return cached.label, cached.tableRoot
+end
+
+local function isStocked(merchant)
+	local label = getMerchantRefs(merchant)
+	return label and label.Text == "00:00"
 end
 
 local function tryBuyFromMerchant(merchant)
-	if not enabled then return end
+	if not enabled or selectedCount == 0 then return end
 	if not merchant or merchant.Name == "Bob" then return end
 
-	local tableRoot = merchant:FindFirstChild("Folder")
-		and merchant.Folder:FindFirstChild("Table")
+	local _, tableRoot = getMerchantRefs(merchant)
 	if not tableRoot then return end
 
 	local slots = tableRoot:GetChildren()
@@ -59,13 +85,13 @@ local function tryBuyFromMerchant(merchant)
 		local slot = slots[i]
 		local id = tonumber(slot.Name)
 		if id then
-			local label = slot:FindFirstChild("Item")
-				and slot.Item:FindFirstChild("SurfaceGui")
-				and slot.Item.SurfaceGui:FindFirstChild("Label")
-
+			local item = slot:FindFirstChild("Item")
+			local surface = item and item:FindFirstChild("SurfaceGui")
+			local label = surface and surface:FindFirstChild("Label")
 			if label and label:IsA("TextLabel") then
 				local text = normalize(label.Text or "")
-				for key in pairs(itemsSet) do
+				for j = 1, selectedCount do
+					local key = itemKeys[j]
 					if text:find(key, 1, true) then
 						pcall(function()
 							BuyRF:InvokeServer(merchant.Name, id, 1)
@@ -79,6 +105,7 @@ local function tryBuyFromMerchant(merchant)
 end
 
 local function scanStockedMerchants()
+	if selectedCount == 0 then return end
 	local merchants = MerchantsRoot:GetChildren()
 	for i = 1, #merchants do
 		local merchant = merchants[i]
@@ -93,18 +120,13 @@ end
 local function watchMerchant(merchant)
 	if not merchant:IsA("Model") or merchant.Name == "Bob" then return end
 
-	local label = merchant:FindFirstChild("Folder")
-		and merchant.Folder:FindFirstChild("Sign")
-		and merchant.Folder.Sign:FindFirstChild("Time")
-		and merchant.Folder.Sign.Time:FindFirstChild("SurfaceGui")
-		and merchant.Folder.Sign.Time.SurfaceGui:FindFirstChild("Label")
-
-	if not (label and label:IsA("TextLabel")) then return end
+	local label = getMerchantRefs(merchant)
+	if not label then return end
 
 	local lastText = label.Text
 	local conn = label:GetPropertyChangedSignal("Text"):Connect(function()
 		local newText = label.Text
-		if newText == "00:00" and lastText ~= "00:00" then
+		if enabled and selectedCount > 0 and newText == "00:00" and lastText ~= "00:00" then
 			task.delay(1, function()
 				tryBuyFromMerchant(merchant)
 			end)
@@ -125,13 +147,17 @@ local function startWatching()
 
 	local addConn = MerchantsRoot.ChildAdded:Connect(function(child)
 		watchMerchant(child)
-		if enabled and child:IsA("Model") and child.Name ~= "Bob" and isStocked(child) then
+		if enabled and selectedCount > 0 and child:IsA("Model") and child.Name ~= "Bob" and isStocked(child) then
 			task.delay(1, function()
 				tryBuyFromMerchant(child)
 			end)
 		end
 	end)
+	local removeConn = MerchantsRoot.ChildRemoved:Connect(function(child)
+		merchantRefs[child] = nil
+	end)
 	connections[#connections + 1] = addConn
+	connections[#connections + 1] = removeConn
 end
 
 local function setItems(list)
@@ -147,6 +173,7 @@ local function setItems(list)
 			end
 		end
 	end
+	rebuildItemKeys()
 end
 
 local function addItem(name)
@@ -159,6 +186,7 @@ local function addItem(name)
 	end
 	itemsSet[key] = true
 	itemsList[#itemsList + 1] = name
+	rebuildItemKeys()
 	return true
 end
 
@@ -177,12 +205,15 @@ local function removeItem(name)
 			break
 		end
 	end
+	rebuildItemKeys()
 	return true
 end
 
 local function clearItems()
 	table.clear(itemsSet)
 	table.clear(itemsList)
+	table.clear(itemKeys)
+	selectedCount = 0
 end
 
 local function getItems()

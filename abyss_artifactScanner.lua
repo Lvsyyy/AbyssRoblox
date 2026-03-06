@@ -1,7 +1,13 @@
 local RS = game:GetService("ReplicatedStorage")
 local artifacts = require(RS.common.library).artifacts
 
+local cachedNames = nil
+
 local function scanArtifactNames()
+	if cachedNames then
+		return cachedNames
+	end
+
 	local names = {}
 	for k, v in pairs(artifacts) do
 		if type(k) == "string" and type(v) == "table" then
@@ -9,7 +15,8 @@ local function scanArtifactNames()
 		end
 	end
 	table.sort(names, function(a, b) return a:lower() < b:lower() end)
-	return names
+	cachedNames = names
+	return cachedNames
 end
 
 return {

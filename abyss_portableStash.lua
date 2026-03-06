@@ -20,6 +20,11 @@ local hotbarRoot
 
 local _ids, _ws, _ord = table.create(256), table.create(256), table.create(256)
 local _lastW, _lastD = 0, 0
+local _tmp = table.create(256)
+local _lastTmp = 0
+local _seen = {}
+local _seenKeys = table.create(256)
+local _seenCount = 0
 
 local backpackFishWeights = {} -- [id]=weight
 local hotbarFishWeights = {}   -- [id]=weight
@@ -30,9 +35,6 @@ local function isFishId(v)
 	return type(v) == "string" and #v == 32 and v:match("^[a-f0-9]+$") ~= nil
 end
 
--- =========================
--- Backpack cache
--- =========================
 local function isFishFrame(inst)
 	if inst.ClassName ~= "Frame" then return false end
 	local id = inst:GetAttribute("id")
@@ -63,10 +65,6 @@ local function rebuildBackpackFishCache()
 	end
 end
 
--- =========================
--- Hotbar cache
--- numeric slot frames under Main.Backpack.Hotbar
--- =========================
 local function rebuildHotbarFishCache()
 	table.clear(hotbarFishWeights)
 	local kids = hotbarRoot:GetChildren()
@@ -96,24 +94,30 @@ local function withdrawAll()
 	if n > 0 then WithdrawRF:InvokeServer(_ids) end
 end
 
--- deposit = union(backpack fish, hotbar fish), sorted by weight desc
 local function depositFishByWeightDesc()
 	local n = 0
-	local seen = table.create(128)
 
 	for id, w in pairs(backpackFishWeights) do
 		n += 1
 		_ids[n], _ws[n] = id, w or 0
-		seen[id] = true
+		_seen[id] = true
+		_seenCount += 1
+		_seenKeys[_seenCount] = id
 	end
 
 	for id, w in pairs(hotbarFishWeights) do
-		if not seen[id] then
+		if not _seen[id] then
 			n += 1
 			_ids[n], _ws[n] = id, w or 0
-			seen[id] = true
 		end
 	end
+
+	for i = 1, _seenCount do
+		local id = _seenKeys[i]
+		_seen[id] = nil
+		_seenKeys[i] = nil
+	end
+	_seenCount = 0
 
 	for i = n + 1, _lastD do
 		_ids[i], _ws[i], _ord[i] = nil, nil, nil
@@ -124,9 +128,10 @@ local function depositFishByWeightDesc()
 	for i = 1, n do _ord[i] = i end
 	sort(_ord, function(a, b) return (_ws[a] or 0) > (_ws[b] or 0) end)
 
-	local tmp = table.create(n)
-	for i = 1, n do tmp[i] = _ids[_ord[i]] end
-	for i = 1, n do _ids[i] = tmp[i] end
+	for i = 1, n do _tmp[i] = _ids[_ord[i]] end
+	for i = 1, n do _ids[i] = _tmp[i] end
+	for i = n + 1, _lastTmp do _tmp[i] = nil end
+	_lastTmp = n
 
 	DepositRF:InvokeServer(_ids)
 end

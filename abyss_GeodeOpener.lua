@@ -123,10 +123,6 @@ local function startWatching()
 			tryOpen()
 		end
 	end)
-
-	artifactFolder.ChildAdded:Connect(function()
-		-- no-op; remove event drives the next open attempt
-	end)
 end
 
 local function setEnabled(v)

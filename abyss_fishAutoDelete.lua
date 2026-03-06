@@ -20,25 +20,35 @@ local enabled = false
 
 local nameSet = {}
 local nameList = {}
+local keyList = {}
+local keyCount = 0
+
+local backpackFishWeights, backpackFishNames = {}, {} -- [id]=weight/name
+local hotbarFishWeights, hotbarFishNames = {}, {}     -- [id]=weight/name
 
 local function normalizeName(s)
 	return string.lower(s)
 end
 
-local backpackFishWeights, backpackFishNames = {}, {} -- [id]=weight/name
-local hotbarFishWeights, hotbarFishNames = {}, {}     -- [id]=weight/name
+local function rebuildKeyList()
+	table.clear(keyList)
+	for key in pairs(nameSet) do
+		keyList[#keyList + 1] = key
+	end
+	keyCount = #keyList
+end
 
 local function isFishId(v)
 	return type(v) == "string" and #v == 32 and v:match("^[a-f0-9]+$") ~= nil
 end
 
 local function isTargetDeleteName(name)
-	if type(name) ~= "string" or name == "" then
+	if keyCount == 0 or type(name) ~= "string" or name == "" then
 		return false
 	end
 	local n = normalizeName(name)
-	for key in pairs(nameSet) do
-		if n:find(key, 1, true) then
+	for i = 1, keyCount do
+		if n:find(keyList[i], 1, true) then
 			return true
 		end
 	end
@@ -87,6 +97,10 @@ local function rebuildHotbarFishCache()
 end
 
 local function deleteAllTargetFish()
+	if keyCount == 0 then
+		return
+	end
+
 	for id, name in pairs(backpackFishNames) do
 		if isTargetDeleteName(name) then
 			DeleteFishRF:InvokeServer(id)
@@ -114,7 +128,7 @@ local function init()
 
 	FishList.ChildAdded:Connect(function(child)
 		addBackpackFish(child)
-		if enabled and child.ClassName == "Frame" and child:GetAttribute("class") == "fish" then
+		if enabled and keyCount > 0 and child.ClassName == "Frame" and child:GetAttribute("class") == "fish" then
 			local id = child:GetAttribute("id")
 			local name = backpackFishNames[id]
 			if isFishId(id) and isTargetDeleteName(name) then
@@ -142,7 +156,7 @@ local function init()
 		hookHotbarSlot(child)
 		rebuildHotbarFishCache()
 
-		if enabled and child.ClassName == "Frame" and tonumber(child.Name) and child:GetAttribute("class") == "fish" then
+		if enabled and keyCount > 0 and child.ClassName == "Frame" and tonumber(child.Name) and child:GetAttribute("class") == "fish" then
 			local id = child:GetAttribute("id")
 			local name = child:GetAttribute("name")
 			if isFishId(id) and isTargetDeleteName(name) then
@@ -178,6 +192,7 @@ local function setNames(list)
 			end
 		end
 	end
+	rebuildKeyList()
 	if enabled then
 		deleteAllTargetFish()
 	end
@@ -191,6 +206,7 @@ local function addName(name)
 		end
 		nameSet[key] = true
 		nameList[#nameList + 1] = name
+		rebuildKeyList()
 		if enabled then
 			deleteAllTargetFish()
 		end
@@ -202,6 +218,8 @@ end
 local function clearNames()
 	table.clear(nameSet)
 	table.clear(nameList)
+	table.clear(keyList)
+	keyCount = 0
 end
 
 local function getNames()

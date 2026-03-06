@@ -1,34 +1,78 @@
 local Players = game:GetService("Players")
-local HttpService = game:GetService("HttpService")
 local RS = game:GetService("ReplicatedStorage")
 
 local lp = Players.LocalPlayer
 local pg = lp:WaitForChild("PlayerGui")
 local Common = RS:WaitForChild("common")
-local KnitServices = Common:WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services")
-local Knit = require(Common:WaitForChild("packages"):WaitForChild("Knit"))
 
 local BASE = "https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/"
 local SAVE_PATH = "abyss_settings.json"
+local MODULE_CACHE_DIR = "abyss_cache"
+local LOADED_MODULES = {}
 
 local function loadModule(name)
-	local src = game:HttpGet(BASE .. name .. ".lua")
+	if LOADED_MODULES[name] then
+		return LOADED_MODULES[name]
+	end
+
+	local cachePath = MODULE_CACHE_DIR .. "/" .. name .. ".lua"
+	local src
+
+	if isfile and readfile and isfile(cachePath) then
+		local ok, cached = pcall(readfile, cachePath)
+		if ok and type(cached) == "string" and cached ~= "" then
+			src = cached
+		end
+	end
+
+	if not src then
+		local ok, fetched = pcall(function()
+			return game:HttpGet(BASE .. name .. ".lua")
+		end)
+		if not ok or type(fetched) ~= "string" or fetched == "" then
+			error("Failed to load module: " .. tostring(name))
+		end
+		src = fetched
+		if writefile and type(src) == "string" and src ~= "" then
+			if makefolder then
+				pcall(makefolder, MODULE_CACHE_DIR)
+			end
+			pcall(writefile, cachePath, src)
+		end
+	else
+		task.spawn(function()
+			local ok, fresh = pcall(function()
+				return game:HttpGet(BASE .. name .. ".lua")
+			end)
+			if ok and type(fresh) == "string" and fresh ~= "" and fresh ~= src and writefile then
+				if makefolder then
+					pcall(makefolder, MODULE_CACHE_DIR)
+				end
+				pcall(writefile, cachePath, fresh)
+			end
+		end)
+	end
+
 	local mod = loadstring(src)
-	return mod()
+	local result = mod()
+	LOADED_MODULES[name] = result
+	return result
 end
 
-local sellAll = loadModule("sellAll")
-local portableStash = loadModule("portableStash")
-local artifactSets = loadModule("artifactSets")
+local sellAll = loadModule("abyss_sellAll")
+local portableStash = loadModule("abyss_portableStash")
+local artifactSets = loadModule("abyss_artifactSets")
 local antiAfk = loadModule("antiAfk")
-local shopBuyer = loadModule("shopBuyer")
-local artifactScanner = loadModule("artifactScanner")
+local shopBuyer = loadModule("abyss_shopBuyer")
+local artifactScanner = loadModule("abyss_artifactScanner")
 local updateArtifacts = loadModule("abyss_UpdateArtifacts")
 local deleteBadArtifacts = loadModule("abyss_DeleteBadArtifacts")
 local autoDelete = loadModule("artifactAutoDelete")
-local fishAutoDelete = loadModule("fishAutoDelete")
+local fishAutoDelete = loadModule("abyss_fishAutoDelete")
 local geodeOpener = loadModule("abyss_GeodeOpener")
-local autoRejoin = loadModule("abyss_AutoRejoin")
+local geodeOnly = loadModule("abyss_geode_only")
+local autoDaily = loadModule("abyss_auto_daily")
+local settingsStore = loadModule("abyss_settings")
 
 portableStash.init()
 fishAutoDelete.init()
@@ -53,158 +97,23 @@ local TAB_CONTENT_HEIGHT = 302
 local TAB_PADDING_TOTAL = 20
 local TAB_ROW_GAP = 10
 
-local DailyClaimRF = KnitServices
-	:WaitForChild("DailyRewardService")
-	:WaitForChild("RF")
-	:WaitForChild("Claim")
-local MinigameRF = KnitServices
-	:WaitForChild("MinigameService")
-	:WaitForChild("RF")
-local MinigameUpdateRF = MinigameRF:WaitForChild("Update")
-local CancelMinigameRF = MinigameRF:WaitForChild("CancelMinigame")
 local FishAssets = Common:WaitForChild("assets"):WaitForChild("fish")
 
-local autoDailyOn = false
-local autoDailyConn
-local autoDailyTimeConn
-local autoDailyLoopId = 0
-local geodeOnlyOn = false
-local geodeOnlyHookInstalled = false
-local lastAutoDailyClaimAt = 0
-local DAILY_READY_TEXT = "Next reward in: <font color='#ffffff'><b>00:00</b></font>"
-local dataController
-
-local function getDailyRewardsData()
-	if not dataController then
-		pcall(function()
-			dataController = Knit.GetController("DataController")
-		end)
-	end
-	if not dataController then return nil end
-
-	local ok, replica = pcall(function()
-		return dataController:GetReplica()
-	end)
-	if not ok or not replica or not replica.Data then
-		return nil
-	end
-	return replica.Data.daily_rewards
-end
-
-local function isDailyReadyByData()
-	local daily = getDailyRewardsData()
-	if type(daily) ~= "table" then return nil end
-	if type(daily.last_claim) ~= "number" then return nil end
-
-	local timeNow = workspace:GetAttribute("TimeNow")
-	if type(timeNow) ~= "number" then return nil end
-
-	return (daily.last_claim + 86400 - timeNow) <= 0
-end
-
-local function getDailyLabel()
-	local main = pg:FindFirstChild("Main")
-	if not main then return nil end
-	local center = main:FindFirstChild("Center")
-	if not center then return nil end
-	local daily = center:FindFirstChild("DailyReward")
-	if not daily then return nil end
-	local nextReward = daily:FindFirstChild("NextReward")
-	if not nextReward then return nil end
-	local label = nextReward:FindFirstChild("Label")
-	if label and label:IsA("TextLabel") then
-		return label
-	end
-	return nil
-end
-
-local function tryClaimDaily()
-	if not autoDailyOn then return end
-	local readyByData = isDailyReadyByData()
-	local label = getDailyLabel()
-	local readyByLabel = (label and label.Text == DAILY_READY_TEXT) and true or false
-	if (readyByData == true or readyByLabel) and os.clock() - lastAutoDailyClaimAt > 3 then
-		lastAutoDailyClaimAt = os.clock()
-		pcall(function()
-			DailyClaimRF:InvokeServer()
-		end)
-	end
-end
+local autoDailyOn = autoDaily.getEnabled()
+local geodeOnlyOn = geodeOnly.getEnabled()
 
 local function setAutoDaily(on)
-	autoDailyOn = on == true
-	if autoDailyConn then
-		autoDailyConn:Disconnect()
-		autoDailyConn = nil
-	end
-	if autoDailyTimeConn then
-		autoDailyTimeConn:Disconnect()
-		autoDailyTimeConn = nil
-	end
-	autoDailyLoopId = autoDailyLoopId + 1
-	if autoDailyOn then
-		local label = getDailyLabel()
-		if label then
-			autoDailyConn = label:GetPropertyChangedSignal("Text"):Connect(tryClaimDaily)
-		end
-		autoDailyTimeConn = workspace:GetAttributeChangedSignal("TimeNow"):Connect(tryClaimDaily)
-		local loopId = autoDailyLoopId
-		task.spawn(function()
-			while autoDailyOn and autoDailyLoopId == loopId do
-				tryClaimDaily()
-				task.wait(1)
-			end
-		end)
-		tryClaimDaily()
-	end
+	autoDaily.setEnabled(on == true)
+	autoDailyOn = autoDaily.getEnabled()
 	if setAutoDailyToggleVisual then
 		setAutoDailyToggleVisual(autoDailyOn)
 	end
 end
 
-local function shouldCancelMinigame(payload)
-	if type(payload) ~= "table" then return false end
-	local rewards = payload.rewards
-	if type(rewards) ~= "table" then return false end
-	return next(rewards) == nil
-end
-
-local function installGeodeOnlyHook()
-	if geodeOnlyHookInstalled then return true end
-	if type(hookmetamethod) ~= "function" or type(getnamecallmethod) ~= "function" then
-		return false
-	end
-	local wrap = type(newcclosure) == "function" and newcclosure or function(f) return f end
-
-	local oldNamecall
-	oldNamecall = hookmetamethod(game, "__namecall", wrap(function(self, ...)
-		local method = getnamecallmethod()
-		local args = { ... }
-		if geodeOnlyOn and method == "InvokeServer" and self == MinigameUpdateRF then
-			local action = args[1]
-			local payload = args[2]
-			if action == "ProgressUpdate" and shouldCancelMinigame(payload) then
-				task.defer(function()
-					pcall(function()
-						CancelMinigameRF:InvokeServer()
-					end)
-				end)
-			end
-		end
-		return oldNamecall(self, ...)
-	end))
-
-	geodeOnlyHookInstalled = true
-	return true
-end
-
 local function setGeodeOnly(on)
 	geodeOnlyOn = on == true
-	if geodeOnlyOn then
-		if not installGeodeOnlyHook() then
-			geodeOnlyOn = false
-		end
-	end
+	geodeOnly.setEnabled(geodeOnlyOn)
+	geodeOnlyOn = geodeOnly.getEnabled()
 	if setGeodeOnlyToggleVisual then
 		setGeodeOnlyToggleVisual(geodeOnlyOn)
 	end
@@ -615,9 +524,6 @@ do
 		fishAutoDelete.setEnabled(on)
 		setToggleVisual(on)
 	end)
-
-	setToggleVisual(fishAutoDelete.getEnabled())
-	refreshList()
 end
 
 -- Misc tab
@@ -709,7 +615,6 @@ do
 		function() sellAll.sellAll() end
 	)
 	makeButton(row4, "Save Settings", BTN_PURPLE).MouseButton1Click:Connect(function()
-		if not writefile then return end
 		local payload = {
 			fishNames = fishAutoDelete.getNames(),
 			fishEnabled = fishAutoDelete.getEnabled(),
@@ -721,10 +626,7 @@ do
 			geodeOnly = geodeOnlyOn,
 			autoDaily = autoDailyOn,
 		}
-		local ok, data = pcall(function() return HttpService:JSONEncode(payload) end)
-		if ok and type(data) == "string" then
-			pcall(writefile, SAVE_PATH, data)
-		end
+		settingsStore.save(SAVE_PATH, payload)
 	end)
 
 	local row5 = makeRow(t, 2, 34)
@@ -829,82 +731,86 @@ do
 			refreshList()
 		end
 	end)
-
-	setToggleVisual(shopBuyer.getEnabled())
-	refreshList()
 end
 
 local function loadSavedSettings()
-	if not (isfile and readfile and isfile(SAVE_PATH)) then return end
-	local ok, data = pcall(readfile, SAVE_PATH)
-	if not ok or type(data) ~= "string" then return end
-
-	local decoded
-	local okDecode = pcall(function()
-		decoded = HttpService:JSONDecode(data)
-	end)
-
-	if okDecode and type(decoded) == "table" then
-		if type(decoded.fishNames) == "table" then
-			fishAutoDelete.setNames(decoded.fishNames)
-		end
-		if decoded.fishEnabled ~= nil then
-			fishAutoDelete.setEnabled(decoded.fishEnabled == true)
-		end
-		if setFishToggleVisual then
-			setFishToggleVisual(fishAutoDelete.getEnabled())
-		end
-		if refreshFishList then
-			refreshFishList()
-		end
-		if type(decoded.artifactAutoDelete) == "table" and applyArtifactAutoDeleteList then
-			applyArtifactAutoDeleteList(decoded.artifactAutoDelete)
-		end
-		if setAntiAfk and decoded.antiAfk ~= nil then
-			setAntiAfk(decoded.antiAfk == true)
-		end
-		if type(decoded.shopItems) == "table" then
-			shopBuyer.setItems(decoded.shopItems)
-		end
-		if decoded.shopEnabled ~= nil then
-			shopBuyer.setEnabled(decoded.shopEnabled == true)
-		end
-		if decoded.geodeEnabled ~= nil then
-			geodeOpener.setEnabled(decoded.geodeEnabled == true)
-		end
-		if decoded.geodeOnly ~= nil then
-			setGeodeOnly(decoded.geodeOnly == true)
-		end
-		if decoded.autoDaily ~= nil then
-			setAutoDaily(decoded.autoDaily == true)
-		end
-		if setShopToggleVisual then
-			setShopToggleVisual(shopBuyer.getEnabled())
-		end
-		if setGeodeToggleVisual then
-			setGeodeToggleVisual(geodeOpener.getEnabled())
-		end
-		if setAutoDailyToggleVisual then
-			setAutoDailyToggleVisual(autoDailyOn)
-		end
-		if refreshShopList then
-			refreshShopList()
-		end
-	else
-		local list = {}
-		for line in data:gmatch("[^\r\n]+") do
-			local s = line:gsub("^%s+", ""):gsub("%s+$", "")
-			if s ~= "" then list[#list + 1] = s end
-		end
-		if #list > 0 then
-			fishAutoDelete.setNames(list)
-		end
-		if refreshFishList then
-			refreshFishList()
-		end
+	local decoded = settingsStore.load(SAVE_PATH)
+	if type(decoded) ~= "table" then
+		return false
 	end
+
+	if type(decoded.fishNames) == "table" then
+		fishAutoDelete.setNames(decoded.fishNames)
+	end
+	if decoded.fishEnabled ~= nil then
+		fishAutoDelete.setEnabled(decoded.fishEnabled == true)
+	end
+	if setFishToggleVisual then
+		setFishToggleVisual(fishAutoDelete.getEnabled())
+	end
+	if refreshFishList then
+		refreshFishList()
+	end
+	if type(decoded.artifactAutoDelete) == "table" and applyArtifactAutoDeleteList then
+		applyArtifactAutoDeleteList(decoded.artifactAutoDelete)
+	end
+	if setAntiAfk and decoded.antiAfk ~= nil then
+		setAntiAfk(decoded.antiAfk == true)
+	end
+	if type(decoded.shopItems) == "table" then
+		shopBuyer.setItems(decoded.shopItems)
+	end
+	if decoded.shopEnabled ~= nil then
+		shopBuyer.setEnabled(decoded.shopEnabled == true)
+	end
+	if decoded.geodeEnabled ~= nil then
+		geodeOpener.setEnabled(decoded.geodeEnabled == true)
+	end
+	if decoded.geodeOnly ~= nil then
+		setGeodeOnly(decoded.geodeOnly == true)
+	end
+	if decoded.autoDaily ~= nil then
+		setAutoDaily(decoded.autoDaily == true)
+	end
+	if setShopToggleVisual then
+		setShopToggleVisual(shopBuyer.getEnabled())
+	end
+	if setGeodeToggleVisual then
+		setGeodeToggleVisual(geodeOpener.getEnabled())
+	end
+	if setAutoDailyToggleVisual then
+		setAutoDailyToggleVisual(autoDailyOn)
+	end
+	if refreshShopList then
+		refreshShopList()
+	end
+	return true
 end
 
-loadSavedSettings()
+local hasLoadedSettings = loadSavedSettings()
+
+if not hasLoadedSettings then
+	if setFishToggleVisual then
+		setFishToggleVisual(fishAutoDelete.getEnabled())
+	end
+	if refreshFishList then
+		refreshFishList()
+	end
+	if setShopToggleVisual then
+		setShopToggleVisual(shopBuyer.getEnabled())
+	end
+	if refreshShopList then
+		refreshShopList()
+	end
+	if setGeodeToggleVisual then
+		setGeodeToggleVisual(geodeOpener.getEnabled())
+	end
+	if setGeodeOnlyToggleVisual then
+		setGeodeOnlyToggleVisual(geodeOnlyOn)
+	end
+	if setAutoDailyToggleVisual then
+		setAutoDailyToggleVisual(autoDailyOn)
+	end
+end
 
 showTab("Artifacts")
