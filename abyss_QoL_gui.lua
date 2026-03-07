@@ -73,6 +73,7 @@ local geodeOpener = loadModule("abyss_GeodeOpener")
 local geodeOnly = loadModule("abyss_geode_only")
 local autoDaily = loadModule("abyss_auto_daily")
 local settingsStore = loadModule("abyss_settings")
+local autoRejoin = loadModule("abyss_AutoRejoin")
 
 portableStash.init()
 fishAutoDelete.init()
