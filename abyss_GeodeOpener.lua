@@ -53,11 +53,11 @@ local function isCoconutGeodeName(name)
 	return n == "coconut"
 end
 
-local function hasCoconutGeode()
+local function getCoconutGeodeCount()
 	local main = pg:FindFirstChild("Main")
-	if not main then return false end
+	if not main then return 0 end
 	local backpackGui = main:FindFirstChild("Backpack")
-	if not backpackGui then return false end
+	if not backpackGui then return 0 end
 
 	local list = backpackGui:FindFirstChild("List")
 		and backpackGui.List:FindFirstChild("CanvasGroup")
@@ -65,9 +65,10 @@ local function hasCoconutGeode()
 
 	local hotbar = backpackGui:FindFirstChild("Hotbar")
 	local seenIds = {}
+	local total = 0
 
 	local function scan(container)
-		if not container then return false end
+		if not container then return end
 		local kids = container:GetChildren()
 		for i = 1, #kids do
 			local inst = kids[i]
@@ -78,7 +79,7 @@ local function hasCoconutGeode()
 				else
 					local name = getItemName(inst)
 					if type(name) == "string" and name ~= "" and isCoconutGeodeName(name) then
-						return true
+						total += 1
 					end
 					if id then
 						seenIds[id] = true
@@ -86,12 +87,11 @@ local function hasCoconutGeode()
 				end
 			end
 		end
-		return false
 	end
 
-	if scan(list) then return true end
-	if scan(hotbar) then return true end
-	return false
+	scan(list)
+	scan(hotbar)
+	return total
 end
 
 local enabled = false
@@ -102,10 +102,9 @@ local function openGeode()
 		return
 	end
 
-	if hasCoconutGeode() then
-		openRF:InvokeServer("Coconut", 99)
-	else
-		openRF:InvokeServer("Rooted", 99)
+	local count = getCoconutGeodeCount()
+	if count > 0 then
+		openRF:InvokeServer("Coconut", math.min(99, count))
 	end
 end
 
