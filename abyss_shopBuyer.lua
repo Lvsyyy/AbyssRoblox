@@ -3,8 +3,9 @@ local WS = game:GetService("Workspace")
 
 local BuyRF = RS.common.packages.Knit.Services.MerchantService.RF.Buy
 local MerchantsRoot = WS.Game.Merchants
-local OtherAssets = RS.common.assets.other
-local FishFeedAssets = RS.common.assets.fish_feed
+local AssetsRoot = RS:WaitForChild("common"):WaitForChild("assets")
+local OtherAssets = AssetsRoot:WaitForChild("other")
+local FishFeedAssets = AssetsRoot:WaitForChild("fish_feed")
 
 local itemsSet = {}
 local itemsList = {}
@@ -21,6 +22,17 @@ local function normalize(s)
 	return string.lower(s)
 end
 
+local function addAvailableName(name, seenNames)
+	if type(name) ~= "string" or name == "" then
+		return
+	end
+	local key = normalize(name)
+	if not seenNames[key] then
+		seenNames[key] = true
+		availableItems[#availableItems + 1] = name
+	end
+end
+
 local function buildAvailableItems()
 	table.clear(availableItems)
 	local seenNames = {}
@@ -35,11 +47,7 @@ local function buildAvailableItems()
 				or lower:find("pod", 1, true)
 				or lower:find("potion", 1, true)
 			then
-				local key = normalize(name)
-				if not seenNames[key] then
-					seenNames[key] = true
-					availableItems[#availableItems + 1] = name
-				end
+				addAvailableName(name, seenNames)
 			end
 		end
 	end
@@ -47,13 +55,8 @@ local function buildAvailableItems()
 	local feedKids = FishFeedAssets:GetChildren()
 	for i = 1, #feedKids do
 		local inst = feedKids[i]
-		local name = inst.Name
-		if type(name) == "string" and name ~= "" then
-			local key = normalize(name)
-			if not seenNames[key] then
-				seenNames[key] = true
-				availableItems[#availableItems + 1] = name
-			end
+		if inst:IsA("Model") or inst:IsA("Folder") then
+			addAvailableName(inst.Name, seenNames)
 		end
 	end
 	table.sort(availableItems)
@@ -243,6 +246,7 @@ local function getItems()
 end
 
 local function getAvailableItems()
+	buildAvailableItems()
 	local out = table.create(#availableItems)
 	for i = 1, #availableItems do out[i] = availableItems[i] end
 	return out
