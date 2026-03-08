@@ -4,6 +4,7 @@ local WS = game:GetService("Workspace")
 local BuyRF = RS.common.packages.Knit.Services.MerchantService.RF.Buy
 local MerchantsRoot = WS.Game.Merchants
 local OtherAssets = RS.common.assets.other
+local FishFeedAssets = RS.common.assets.fish_feed
 
 local itemsSet = {}
 local itemsList = {}
@@ -22,6 +23,8 @@ end
 
 local function buildAvailableItems()
 	table.clear(availableItems)
+	local seenNames = {}
+
 	local kids = OtherAssets:GetChildren()
 	for i = 1, #kids do
 		local inst = kids[i]
@@ -31,8 +34,24 @@ local function buildAvailableItems()
 			if lower:find("shard", 1, true)
 				or lower:find("pod", 1, true)
 				or lower:find("potion", 1, true)
-				or lower:find("feed", 1, true)
 			then
+				local key = normalize(name)
+				if not seenNames[key] then
+					seenNames[key] = true
+					availableItems[#availableItems + 1] = name
+				end
+			end
+		end
+	end
+
+	local feedKids = FishFeedAssets:GetChildren()
+	for i = 1, #feedKids do
+		local inst = feedKids[i]
+		local name = inst.Name
+		if type(name) == "string" and name ~= "" then
+			local key = normalize(name)
+			if not seenNames[key] then
+				seenNames[key] = true
 				availableItems[#availableItems + 1] = name
 			end
 		end

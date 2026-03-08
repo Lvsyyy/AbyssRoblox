@@ -74,14 +74,7 @@ local geodeOnly = loadModule("abyss_geode_only")
 local autoDaily = loadModule("abyss_auto_daily")
 local settingsStore = loadModule("abyss_settings")
 local autoRejoin = loadModule("abyss_AutoRejoin")
-
-local KnitServices = Common:WaitForChild("packages"):WaitForChild("Knit"):WaitForChild("Services")
-local FishPondRF = KnitServices:WaitForChild("FishPondService"):WaitForChild("RF")
-local CollectAllRoeRF = FishPondRF:WaitForChild("CollectAll")
-local SellServiceRF = KnitServices:WaitForChild("SellService"):WaitForChild("RF")
-local SellInventoryRF = SellServiceRF:WaitForChild("SellInventory")
-local InventoryRF = KnitServices:WaitForChild("InventoryService"):WaitForChild("RF")
-local EquipArtifactsLoadoutRF = InventoryRF:WaitForChild("EquipArtifactsLoadout")
+local roe = loadModule("abyss_roe")
 
 portableStash.init()
 fishAutoDelete.init()
@@ -111,68 +104,14 @@ local FishAssets = Common:WaitForChild("assets"):WaitForChild("fish")
 
 local autoDailyOn = autoDaily.getEnabled()
 local geodeOnlyOn = geodeOnly.getEnabled()
-local roeAutoOn = false
-local roeAutoNonce = 0
-
-local function collectRoe()
-	pcall(function()
-		CollectAllRoeRF:InvokeServer()
-	end)
-end
-
-local function sellRoe()
-	pcall(function()
-		EquipArtifactsLoadoutRF:InvokeServer(4)
-		SellInventoryRF:InvokeServer()
-	end)
-end
-
-local function getRoeUsageRatio()
-	local main = pg:FindFirstChild("Main")
-	local center = main and main:FindFirstChild("Center")
-	local fishPond = center and center:FindFirstChild("FishPond")
-	local pondMain = fishPond and fishPond:FindFirstChild("Main")
-	local itemStash = pondMain and pondMain:FindFirstChild("itemStash")
-	local itemWeight = itemStash and itemStash:FindFirstChild("ItemWeight")
-	if not (itemWeight and itemWeight:IsA("TextLabel")) then
-		return nil
-	end
-
-	local text = (itemWeight.Text or ""):gsub(",", "")
-	local left, right = text:match("([%d%.]+)%s*kg%s*/%s*([%d%.]+)%s*kg")
-	local cur = tonumber(left)
-	local maxv = tonumber(right)
-	if not cur or not maxv or maxv <= 0 then
-		return nil
-	end
-	return cur / maxv
-end
+local roeAutoOn = roe.getEnabled()
 
 local function setRoeAuto(on)
-	roeAutoOn = on == true
+	roe.setEnabled(on == true)
+	roeAutoOn = roe.getEnabled()
 	if setRoeToggleVisual then
 		setRoeToggleVisual(roeAutoOn)
 	end
-
-	roeAutoNonce += 1
-	local myNonce = roeAutoNonce
-	if not roeAutoOn then
-		return
-	end
-
-	task.spawn(function()
-		local nextActionAt = 0
-		while roeAutoOn and myNonce == roeAutoNonce do
-			local ratio = getRoeUsageRatio()
-			if ratio and ratio >= 0.9 and tick() >= nextActionAt then
-				collectRoe()
-				task.wait(0.2)
-				sellRoe()
-				nextActionAt = tick() + 2
-			end
-			task.wait(0.2)
-		end
-	end)
 end
 
 local function setAutoDaily(on)
@@ -684,11 +623,11 @@ do
 	setGeodeOnlyToggleVisualImpl(geodeOnlyOn)
 
 	local row4 = makeRow(t, 3, 34)
-	makeButton(row4, "Collect Roe", BTN_GREEN).MouseButton1Click:Connect(function()
-		collectRoe()
+	makeButton(row4, "Collect Roe", BTN_PURPLE).MouseButton1Click:Connect(function()
+		roe.collect()
 	end)
 	makeButton(row4, "Sell Roe", BTN_PURPLE).MouseButton1Click:Connect(function()
-		sellRoe()
+		roe.sell()
 	end)
 	local roeToggleBtn = makeButton(row4, "Auto Roe: OFF", BTN_RED)
 	local function setRoeToggleVisualImpl(on)
