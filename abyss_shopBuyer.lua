@@ -31,6 +31,7 @@ local function buildAvailableItems()
 			if lower:find("shard", 1, true)
 				or lower:find("pod", 1, true)
 				or lower:find("potion", 1, true)
+				or lower:find("feed", 1, true)
 			then
 				availableItems[#availableItems + 1] = name
 			end
