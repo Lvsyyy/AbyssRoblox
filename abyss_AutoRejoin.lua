@@ -5,18 +5,7 @@ local HttpService = game:GetService("HttpService")
 
 local lp = Players.LocalPlayer
 
-local CONFIG = {
-	-- Script to execute again after rejoin
-	SCRIPT_URL = "https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/abyss_QoL_gui.lua",
-	REJOIN_DELAY = 2,
-	REJOIN_RETRY_DELAY = 5,
-	REJOIN_RETRY_MAX_DELAY = 60,
-	REJOIN_RETRY_MULT = 1.5,
-	REEXEC_DELAY = 8,
-	REEXEC_RETRIES = 8,
-	REEXEC_RETRY_DELAY = 3,
-	SERVER_SCAN_PAGES = 3,
-}
+local SCRIPT_URL = "https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/abyss_QoL_gui.lua"
 
 local IN_PROGRESS = Enum.TeleportState.InProgress
 local rejoinArmed = false
@@ -24,18 +13,18 @@ local queuedThisTeleport = false
 local g = getgenv and getgenv() or _G
 
 local function runConfiguredScript()
-	if type(CONFIG.SCRIPT_URL) ~= "string" or CONFIG.SCRIPT_URL == "" then
+	if type(SCRIPT_URL) ~= "string" or SCRIPT_URL == "" then
 		return
 	end
-	task.wait(CONFIG.REEXEC_DELAY)
-	for _ = 1, CONFIG.REEXEC_RETRIES do
+	task.wait(5)
+	for _ = 1, 12 do
 		local ok = pcall(function()
-			loadstring(game:HttpGet(CONFIG.SCRIPT_URL))()
+			loadstring(game:HttpGet(SCRIPT_URL))()
 		end)
 		if ok then
 			return
 		end
-		task.wait(CONFIG.REEXEC_RETRY_DELAY)
+		task.wait(2)
 	end
 	warn("Abyss AutoRejoin: failed to re-execute script after retries.")
 end
@@ -95,10 +84,8 @@ end
 
 local function getLowestPublicServerJobId()
 	local cursor = nil
-	local bestId = nil
-	local bestPlaying = nil
 
-	for _ = 1, CONFIG.SERVER_SCAN_PAGES do
+	while true do
 		local url = ("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100"):format(game.PlaceId)
 		if type(cursor) == "string" and cursor ~= "" then
 			url = url .. "&cursor=" .. HttpService:UrlEncode(cursor)
@@ -131,10 +118,7 @@ local function getLowestPublicServerJobId()
 					and playing > 0
 					and playing < maxPlayers
 				then
-					if bestPlaying == nil or playing < bestPlaying then
-						bestPlaying = playing
-						bestId = id
-					end
+					return id
 				end
 			end
 		end
@@ -143,17 +127,15 @@ local function getLowestPublicServerJobId()
 		if type(cursor) ~= "string" or cursor == "" then
 			break
 		end
+		task.wait(0.05)
 	end
 
-	return bestId
+	return nil
 end
 
 local function buildReexecCode()
-	return ("local u=%q local d=%d local r=%d local rd=%d task.wait(d) for i=1,r do local ok=pcall(function() loadstring(game:HttpGet(u))() end) if ok then break end task.wait(rd) end"):format(
-		CONFIG.SCRIPT_URL,
-		CONFIG.REEXEC_DELAY,
-		CONFIG.REEXEC_RETRIES,
-		CONFIG.REEXEC_RETRY_DELAY
+	return ("local u=%q task.wait(5) for i=1,12 do local ok=pcall(function() loadstring(game:HttpGet(u))() end) if ok then break end task.wait(2) end"):format(
+		SCRIPT_URL
 	)
 end
 
@@ -221,15 +203,15 @@ local function rejoinNow()
 		queuedThisTeleport = true
 	end
 
-	task.wait(CONFIG.REJOIN_DELAY)
+	task.wait(1)
 
-	local delay = CONFIG.REJOIN_RETRY_DELAY
+	local delay = 1
 	while true do
 		if tryRejoinOnce(queued) then
 			return
 		end
 		task.wait(delay)
-		delay = math.min(CONFIG.REJOIN_RETRY_MAX_DELAY, delay * CONFIG.REJOIN_RETRY_MULT)
+		delay = math.min(15, delay * 1.3)
 	end
 end
 
