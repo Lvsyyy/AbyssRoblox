@@ -5,58 +5,11 @@ local HttpService = game:GetService("HttpService")
 
 local lp = Players.LocalPlayer
 
-local SCRIPT_URL = "https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/abyss_QoL_gui.lua"
-
-local IN_PROGRESS = Enum.TeleportState.InProgress
-local rejoinArmed = false
-local queuedThisTeleport = false
-local g = getgenv and getgenv() or _G
-
-local function runConfiguredScript()
-	if type(SCRIPT_URL) ~= "string" or SCRIPT_URL == "" then
-		return
-	end
-	task.wait(5)
-	for _ = 1, 12 do
-		local ok = pcall(function()
-			loadstring(game:HttpGet(SCRIPT_URL))()
-		end)
-		if ok then
-			return
-		end
-		task.wait(2)
-	end
-	warn("Abyss AutoRejoin: failed to re-execute script after retries.")
-end
-
-local function queueScriptOnTeleport(code)
-	local funcs = {
-		queue_on_teleport,
-		queueonteleport,
-		syn and syn.queue_on_teleport,
-		fluxus and fluxus.queue_on_teleport,
-		KRNL_LOADED and getgenv and getgenv().queue_on_teleport,
-	}
-	for i = 1, #funcs do
-		local fn = funcs[i]
-		if type(fn) == "function" then
-			local ok = pcall(fn, code)
-			if ok then
-				return true
-			end
-		end
-	end
-	return false
-end
-
 local function httpGet(url)
 	local funcs = {
-		syn and syn.request,
 		http and http.request,
 		http_request,
 		request,
-		fluxus and fluxus.request,
-		KRNL_LOADED and getgenv and getgenv().http_request,
 	}
 
 	for i = 1, #funcs do
@@ -83,18 +36,18 @@ local function httpGet(url)
 end
 
 local function getLowestPublicServerJobId()
-	local cursor = nil
+local cursor = nil
 
-	while true do
+while true do
 		local url = ("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100"):format(game.PlaceId)
 		if type(cursor) == "string" and cursor ~= "" then
 			url = url .. "&cursor=" .. HttpService:UrlEncode(cursor)
 		end
 
-		local body = httpGet(url)
-		if not body then
-			break
-		end
+	local body = httpGet(url)
+	if not body then
+		break
+	end
 
 		local ok, decoded = pcall(function()
 			return HttpService:JSONDecode(body)
@@ -127,53 +80,15 @@ local function getLowestPublicServerJobId()
 		if type(cursor) ~= "string" or cursor == "" then
 			break
 		end
-		task.wait(0.05)
-	end
-
-	return nil
 end
 
-local function buildReexecCode()
-	return ("local u=%q task.wait(5) for i=1,12 do local ok=pcall(function() loadstring(game:HttpGet(u))() end) if ok then break end task.wait(2) end"):format(
-		SCRIPT_URL
-	)
+return nil
 end
-
-task.spawn(function()
-	local ok, teleportData = pcall(function()
-		return TeleportService:GetLocalPlayerTeleportData()
-	end)
-	if ok
-		and type(teleportData) == "table"
-		and teleportData.__abyss_reexec == true
-		and not g.__abyss_reexec_consumed
-	then
-		g.__abyss_reexec_consumed = true
-		runConfiguredScript()
-	end
-end)
 
 local rejoining = false
-local warnedQueueMissing = false
 
-local function tryRejoinOnce(queued)
-	local teleportData = {
-		__abyss_reexec = true,
-	}
-
-	local targetJobId = getLowestPublicServerJobId()
-	if targetJobId then
-		local okLowest = pcall(function()
-			TeleportService:TeleportToPlaceInstance(game.PlaceId, targetJobId, lp, nil, teleportData)
-		end)
-		if okLowest then
-			return true
-		end
-	end
-
+local function tryRejoinOnce()
 	local options = Instance.new("TeleportOptions")
-	options:SetTeleportData(teleportData)
-
 	local ok = pcall(function()
 		TeleportService:TeleportAsync(game.PlaceId, { lp }, options)
 	end)
@@ -181,9 +96,17 @@ local function tryRejoinOnce(queued)
 		return true
 	end
 
-	if not queued and not warnedQueueMissing then
-		warnedQueueMissing = true
-		warn("Abyss AutoRejoin: queue_on_teleport missing; re-exec may not run after rejoin.")
+	-- Only scan for a specific server every 3rd failure to reduce latency.
+	if math.random(1, 3) == 1 then
+		local targetJobId = getLowestPublicServerJobId()
+		if targetJobId then
+			local okLowest = pcall(function()
+				TeleportService:TeleportToPlaceInstance(game.PlaceId, targetJobId, lp)
+			end)
+			if okLowest then
+				return true
+			end
+		end
 	end
 
 	local okFallback = pcall(function()
@@ -195,50 +118,86 @@ end
 local function rejoinNow()
 	if rejoining then return end
 	rejoining = true
-	rejoinArmed = true
-	queuedThisTeleport = false
+	task.wait(0.1)
 
-	local queued = queueScriptOnTeleport(buildReexecCode())
-	if queued then
-		queuedThisTeleport = true
-	end
-
-	task.wait(1)
-
-	local delay = 1
+	local delay = 0.2
 	while true do
-		if tryRejoinOnce(queued) then
+		if tryRejoinOnce() then
 			return
 		end
 		task.wait(delay)
-		delay = math.min(15, delay * 1.3)
+		delay = math.min(5, delay * 1.2)
 	end
 end
 
-lp.OnTeleport:Connect(function(state)
-	if not rejoinArmed then return end
-	if state ~= IN_PROGRESS then return end
-	if queuedThisTeleport then return end
-	if queueScriptOnTeleport(buildReexecCode()) then
-		queuedThisTeleport = true
+local function hasDisconnectText(root)
+	local texts = root:GetDescendants()
+	for i = 1, #texts do
+		local inst = texts[i]
+		if inst:IsA("TextLabel") or inst:IsA("TextButton") then
+			local t = string.lower(inst.Text or "")
+			if t:find("kicked", 1, true)
+				or t:find("disconnected", 1, true)
+				or t:find("lost connection", 1, true)
+				or t:find("connection error", 1, true)
+				or t:find("failed to connect", 1, true)
+				or t:find("please check your internet connection", 1, true)
+				or t:find("error code 277", 1, true)
+				or t:find("server shutdown", 1, true)
+				or t:find("session expired", 1, true)
+				or t:find("error code", 1, true)
+			then
+				return true
+			end
+		end
 	end
-end)
+	return false
+end
+
+local function findReconnectButton(root)
+	local buttons = root:GetDescendants()
+	for i = 1, #buttons do
+		local inst = buttons[i]
+		if inst:IsA("TextButton") then
+			local t = string.lower(inst.Text or "")
+			if t:find("rejoin", 1, true)
+				or t:find("reconnect", 1, true)
+				or t:find("retry", 1, true)
+				or t:find("reconnect", 1, true)
+			then
+				return inst
+			end
+		end
+	end
+	return nil
+end
+
+local function pressButton(btn)
+	if not btn then
+		return false
+	end
+	local ok = pcall(function()
+		if firesignal and btn.MouseButton1Click then
+			firesignal(btn.MouseButton1Click)
+		end
+	end)
+	if ok then
+		return true
+	end
+	return pcall(function()
+		btn:Activate()
+	end)
+end
 
 local function isKickPrompt(guiObj)
 	if not guiObj or not guiObj:IsA("GuiObject") then
 		return false
 	end
-	if guiObj.Name ~= "ErrorPrompt" then
-		return false
+	local name = string.lower(guiObj.Name or "")
+	if name:find("error", 1, true) or name:find("prompt", 1, true) or name:find("disconnect", 1, true) or name:find("kick", 1, true) then
+		return hasDisconnectText(guiObj)
 	end
-	local title = guiObj:FindFirstChild("Title", true)
-	if title and title:IsA("TextLabel") then
-		local t = string.lower(title.Text or "")
-		if string.find(t, "kicked", 1, true) or string.find(t, "disconnected", 1, true) then
-			return true
-		end
-	end
-	return true
+	return false
 end
 
 local promptOverlay = CoreGui:WaitForChild("RobloxPromptGui"):WaitForChild("promptOverlay")
@@ -246,5 +205,25 @@ local promptOverlay = CoreGui:WaitForChild("RobloxPromptGui"):WaitForChild("prom
 promptOverlay.ChildAdded:Connect(function(child)
 	if isKickPrompt(child) then
 		task.spawn(rejoinNow)
+	end
+end)
+
+do
+	local kids = promptOverlay:GetChildren()
+	for i = 1, #kids do
+		if isKickPrompt(kids[i]) then
+			task.spawn(rejoinNow)
+			break
+		end
+	end
+end
+
+task.spawn(function()
+	while true do
+		local btn = findReconnectButton(promptOverlay)
+		if btn then
+			pressButton(btn)
+		end
+		task.wait(1)
 	end
 end)
