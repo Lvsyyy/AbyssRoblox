@@ -9,6 +9,9 @@ local CONFIG = {
 	-- Script to execute again after rejoin
 	SCRIPT_URL = "https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/abyss_QoL_gui.lua",
 	REJOIN_DELAY = 2,
+	REJOIN_RETRY_DELAY = 5,
+	REJOIN_RETRY_MAX_DELAY = 60,
+	REJOIN_RETRY_MULT = 1.5,
 	REEXEC_DELAY = 8,
 	REEXEC_RETRIES = 8,
 	REEXEC_RETRY_DELAY = 3,
@@ -169,18 +172,9 @@ task.spawn(function()
 end)
 
 local rejoining = false
-local function rejoinNow()
-	if rejoining then return end
-	rejoining = true
-	rejoinArmed = true
-	queuedThisTeleport = false
+local warnedQueueMissing = false
 
-	local queued = queueScriptOnTeleport(buildReexecCode())
-	if queued then
-		queuedThisTeleport = true
-	end
-	task.wait(CONFIG.REJOIN_DELAY)
-
+local function tryRejoinOnce(queued)
 	local teleportData = {
 		__abyss_reexec = true,
 	}
@@ -191,7 +185,7 @@ local function rejoinNow()
 			TeleportService:TeleportToPlaceInstance(game.PlaceId, targetJobId, lp, nil, teleportData)
 		end)
 		if okLowest then
-			return
+			return true
 		end
 	end
 
@@ -201,12 +195,41 @@ local function rejoinNow()
 	local ok = pcall(function()
 		TeleportService:TeleportAsync(game.PlaceId, { lp }, options)
 	end)
+	if ok then
+		return true
+	end
 
-	if not ok then
-		if not queued then
-			warn("Abyss AutoRejoin: queue_on_teleport missing; re-exec may not run after rejoin.")
-		end
+	if not queued and not warnedQueueMissing then
+		warnedQueueMissing = true
+		warn("Abyss AutoRejoin: queue_on_teleport missing; re-exec may not run after rejoin.")
+	end
+
+	local okFallback = pcall(function()
 		TeleportService:Teleport(game.PlaceId, lp)
+	end)
+	return okFallback
+end
+
+local function rejoinNow()
+	if rejoining then return end
+	rejoining = true
+	rejoinArmed = true
+	queuedThisTeleport = false
+
+	local queued = queueScriptOnTeleport(buildReexecCode())
+	if queued then
+		queuedThisTeleport = true
+	end
+
+	task.wait(CONFIG.REJOIN_DELAY)
+
+	local delay = CONFIG.REJOIN_RETRY_DELAY
+	while true do
+		if tryRejoinOnce(queued) then
+			return
+		end
+		task.wait(delay)
+		delay = math.min(CONFIG.REJOIN_RETRY_MAX_DELAY, delay * CONFIG.REJOIN_RETRY_MULT)
 	end
 end
 
