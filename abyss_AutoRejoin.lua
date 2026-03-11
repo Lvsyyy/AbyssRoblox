@@ -6,6 +6,46 @@ local LogService = game:GetService("LogService")
 local HttpService = game:GetService("HttpService")
 
 local lp = Players.LocalPlayer
+local g = getgenv and getgenv() or _G
+local SCRIPT_URL = "https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/abyss_QoL_gui.lua"
+
+local function runConfiguredScript()
+	if type(SCRIPT_URL) ~= "string" or SCRIPT_URL == "" then
+		return
+	end
+	task.wait(5)
+	for _ = 1, 12 do
+		local ok = pcall(function()
+			loadstring(game:HttpGet(SCRIPT_URL))()
+		end)
+		if ok then
+			return
+		end
+		task.wait(2)
+	end
+end
+
+local function queueScriptOnTeleport(code)
+	if type(queue_on_teleport) == "function" then
+		local ok = pcall(queue_on_teleport, code)
+		if ok then
+			return true
+		end
+	end
+	if type(queueonteleport) == "function" then
+		local ok = pcall(queueonteleport, code)
+		if ok then
+			return true
+		end
+	end
+	return false
+end
+
+local function buildReexecCode()
+	return ("local u=%q task.wait(5) for i=1,12 do local ok=pcall(function() loadstring(game:HttpGet(u))() end) if ok then break end task.wait(2) end"):format(
+		SCRIPT_URL
+	)
+end
 
 local function httpGet(url)
 	local funcs = {
@@ -88,9 +128,14 @@ return nil
 end
 
 local rejoining = false
+local rejoinArmed = false
+local queuedThisTeleport = false
 
 local function tryRejoinOnce()
+	local teleportData = { __abyss_reexec = true }
 	local options = Instance.new("TeleportOptions")
+	options:SetTeleportData(teleportData)
+
 	local ok = pcall(function()
 		TeleportService:TeleportAsync(game.PlaceId, { lp }, options)
 	end)
@@ -103,7 +148,7 @@ local function tryRejoinOnce()
 		local targetJobId = getLowestPublicServerJobId()
 		if targetJobId then
 			local okLowest = pcall(function()
-				TeleportService:TeleportToPlaceInstance(game.PlaceId, targetJobId, lp)
+				TeleportService:TeleportToPlaceInstance(game.PlaceId, targetJobId, lp, nil, teleportData)
 			end)
 			if okLowest then
 				return true
@@ -120,7 +165,13 @@ end
 local function rejoinNow()
 	if rejoining then return end
 	rejoining = true
+	rejoinArmed = true
+	queuedThisTeleport = false
 	task.wait(0.1)
+
+	if queueScriptOnTeleport(buildReexecCode()) then
+		queuedThisTeleport = true
+	end
 
 	local delay = 0.2
 	while true do
@@ -255,5 +306,28 @@ LogService.MessageOut:Connect(function(msg)
 	local t = string.lower(tostring(msg))
 	if t:find("error code 277", 1, true) or t:find("disconnected", 1, true) then
 		task.spawn(rejoinNow)
+	end
+end)
+
+task.spawn(function()
+	local ok, teleportData = pcall(function()
+		return TeleportService:GetLocalPlayerTeleportData()
+	end)
+	if ok
+		and type(teleportData) == "table"
+		and teleportData.__abyss_reexec == true
+		and not g.__abyss_reexec_consumed
+	then
+		g.__abyss_reexec_consumed = true
+		runConfiguredScript()
+	end
+end)
+
+lp.OnTeleport:Connect(function(state)
+	if not rejoinArmed then return end
+	if state ~= Enum.TeleportState.InProgress then return end
+	if queuedThisTeleport then return end
+	if queueScriptOnTeleport(buildReexecCode()) then
+		queuedThisTeleport = true
 	end
 end)
