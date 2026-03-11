@@ -7,7 +7,7 @@ local HttpService = game:GetService("HttpService")
 
 local lp = Players.LocalPlayer
 local g = getgenv and getgenv() or _G
-local SCRIPT_URL = "https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/abyss_QoL_gui.lua"
+local SCRIPT_URL = "https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/abyss_GUI.lua"
 
 local function runConfiguredScript()
 	if type(SCRIPT_URL) ~= "string" or SCRIPT_URL == "" then

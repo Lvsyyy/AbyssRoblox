@@ -10,7 +10,7 @@ If you use this inside a public script / hub do not obfuscate it support Open So
 | `abyss_Sell.lua` | Sells all inventory after equipping loadout 4. |
 | `abyss_PortableStash.lua` | Deposits and withdraws fish with weight-based ordering. |
 | `abyss_ArtifactSets.lua` | Equips weight, damage, or speed artifact loadouts. |
-| `abyss_AutoAfk.lua` | Sends a periodic key press to prevent AFK. |
+| `abyss_AntiAfk.lua` | Sends a periodic key press to prevent AFK. |
 | `abyss_ArtifactScan.lua` | Returns a sorted list of artifact names from the library. |
 | `abyss_AutoArtifactDelete.lua` | Enables or disables auto-delete for a selected artifact. |
 | `abyss_AutoFishDelete.lua` | Manages fish name auto-delete with toggle and cache watchers. |
@@ -18,15 +18,15 @@ If you use this inside a public script / hub do not obfuscate it support Open So
 | `abyss_ArtifactUpdate.lua` | Updates each artifact set with the best matching stats. |
 | `abyss_ArtifactDelete.lua` | Deletes non-protected artifacts not in the top 3 of each category. |
 | `abyss_AutoGeode.lua` | Opens Coconut geodes up to 99 based on backpack/hotbar count; falls back to Rooted. |
-| `abyss_AutoGeodeOnly.lua` | Cancels non-reward minigame progress updates for geode-only flow. |
+| `abyss_GeodeOnly.lua` | Cancels non-reward minigame progress updates for geode-only flow. |
 | `abyss_AutoDaily.lua` | Auto-claims daily rewards when available. |
 | `abyss_Settings.lua` | Saves/loads GUI settings JSON with legacy fallback parsing. |
 | `abyss_AutoRejoin.lua` | Rejoins after kick/error prompt and re-executes the configured script on teleport. |
-| `abyss_QoL_gui.lua` | Tabbed GUI that loads and calls the other scripts via loadstring. |
+| `abyss_GUI.lua` | Tabbed GUI that loads and calls the other scripts via loadstring. |
 
 ## Run This
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/abyss_QoL_gui.lua"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/abyss_GUI.lua"))()
 ```
 
 ## Preview
