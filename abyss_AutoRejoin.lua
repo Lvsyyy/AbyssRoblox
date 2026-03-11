@@ -1,6 +1,8 @@
 local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
 local CoreGui = game:GetService("CoreGui")
+local GuiService = game:GetService("GuiService")
+local LogService = game:GetService("LogService")
 local HttpService = game:GetService("HttpService")
 
 local lp = Players.LocalPlayer
@@ -225,5 +227,33 @@ task.spawn(function()
 			pressButton(btn)
 		end
 		task.wait(1)
+	end
+end)
+
+GuiService.ErrorMessageChanged:Connect(function(msg)
+	if type(msg) == "string" and msg ~= "" then
+		local t = string.lower(msg)
+		if t:find("kicked", 1, true)
+			or t:find("disconnected", 1, true)
+			or t:find("lost connection", 1, true)
+			or t:find("connection error", 1, true)
+			or t:find("failed to connect", 1, true)
+			or t:find("error code 277", 1, true)
+		then
+			task.spawn(rejoinNow)
+		end
+	end
+end)
+
+TeleportService.TeleportInitFailed:Connect(function(player)
+	if player == lp then
+		task.spawn(rejoinNow)
+	end
+end)
+
+LogService.MessageOut:Connect(function(msg)
+	local t = string.lower(tostring(msg))
+	if t:find("error code 277", 1, true) or t:find("disconnected", 1, true) then
+		task.spawn(rejoinNow)
 	end
 end)
