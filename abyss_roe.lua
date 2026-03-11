@@ -61,10 +61,8 @@ local function setEnabled(v)
 		local nextActionAt = 0
 		while enabled and myNonce == nonce do
 			local ratio = getUsageRatio()
-			if ratio and ratio >= 0.9 and tick() >= nextActionAt then
+			if ratio and ratio >= 0.95 and tick() >= nextActionAt then
 				collect()
-				task.wait(0.2)
-				sell()
 				nextActionAt = tick() + 2
 			end
 			task.wait(0.2)
