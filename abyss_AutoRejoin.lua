@@ -47,6 +47,14 @@ local function buildReexecCode()
 	)
 end
 
+-- Queue reexec immediately so any teleport (including reconnect) runs it.
+do
+	local ok = queueScriptOnTeleport(buildReexecCode())
+	if g then
+		g.__abyss_reexec_queued = ok and true or false
+	end
+end
+
 local function httpGet(url)
 	local funcs = {
 		http and http.request,
