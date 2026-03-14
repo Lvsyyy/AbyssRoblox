@@ -225,6 +225,16 @@ local function pressButton(btn)
 	if okActivate then
 		return true
 	end
+	if VirtualInputManager then
+		local okKey = pcall(function()
+			GuiService.SelectedObject = btn
+			VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
+			VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
+		end)
+		if okKey then
+			return true
+		end
+	end
 	if VirtualInputManager and btn.AbsoluteSize and btn.AbsolutePosition then
 		local x = btn.AbsolutePosition.X + (btn.AbsoluteSize.X / 2)
 		local y = btn.AbsolutePosition.Y + (btn.AbsoluteSize.Y / 2)
