@@ -173,9 +173,23 @@ local function findReconnectButton(root)
 	local buttons = root:GetDescendants()
 	for i = 1, #buttons do
 		local inst = buttons[i]
-		if inst:IsA("TextButton") then
-			local t = string.lower(inst.Text or "")
-			if t:find("rejoin", 1, true) or t:find("reconnect", 1, true) or t:find("retry", 1, true) then
+		if inst:IsA("GuiButton") then
+			local t = ""
+			if inst:IsA("TextButton") then
+				t = inst.Text or ""
+			end
+			if t == "" then
+				local kids = inst:GetDescendants()
+				for k = 1, #kids do
+					local kid = kids[k]
+					if kid:IsA("TextLabel") and kid.Text and kid.Text ~= "" then
+						t = kid.Text
+						break
+					end
+				end
+			end
+			local lower = string.lower(t)
+			if lower:find("rejoin", 1, true) or lower:find("reconnect", 1, true) or lower:find("retry", 1, true) then
 				return inst
 			end
 		end
@@ -187,13 +201,18 @@ local function pressButton(btn)
 	if not btn then
 		return false
 	end
-	local ok = pcall(function()
-		if firesignal and btn.MouseButton1Click then
-			firesignal(btn.MouseButton1Click)
+	if firesignal then
+		local ok = pcall(function()
+			if btn.MouseButton1Click then
+				firesignal(btn.MouseButton1Click)
+			end
+			if btn.Activated then
+				firesignal(btn.Activated)
+			end
+		end)
+		if ok then
+			return true
 		end
-	end)
-	if ok then
-		return true
 	end
 	return pcall(function()
 		btn:Activate()
@@ -237,6 +256,8 @@ local function tryPressReconnect()
 	return false
 end
 
+local promptVisibleSince = 0
+
 rejoinNow = function()
 	if rejoining then return end
 	rejoining = true
@@ -258,10 +279,25 @@ rejoinNow = function()
 			end
 		else
 			if hasKickPrompt() then
-				tryPressReconnect()
-				stepWait = 1
-			end
-			if stepWait ~= 1 then
+				clearPendingTeleport()
+				if promptVisibleSince == 0 then
+					promptVisibleSince = os.clock()
+				end
+				if tryPressReconnect() then
+					stepWait = 1
+				else
+					if os.clock() - promptVisibleSince > 3 then
+						if not probeOnline() then
+							waitForConnectivity()
+						end
+						tryRejoinOnce()
+						bumpDelay = true
+					else
+						stepWait = 1
+					end
+				end
+			else
+				promptVisibleSince = 0
 				if not probeOnline() then
 					waitForConnectivity()
 				end
