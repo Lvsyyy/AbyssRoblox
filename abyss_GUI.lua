@@ -8,6 +8,11 @@ local Common = RS:WaitForChild("common")
 
 local BASE = "https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/"
 local SAVE_PATH = "abyss_settings.json"
+local _wait = (task and task.wait) or wait
+local _spawn = (task and task.spawn) or spawn
+local _defer = (task and task.defer) or function(fn, ...)
+	_spawn(fn, ...)
+end
 local MODULE_SRC = {}
 local MODULE_LOADING = {}
 local LOADED_MODULES = {}
@@ -38,7 +43,7 @@ local function loadModule(name)
 				src = cached
 				break
 			end
-			task.wait()
+			_wait()
 		end
 	end
 
@@ -117,7 +122,7 @@ local function prefetchModules(list)
 		local name = list[i]
 		if not MODULE_SRC[name] and not MODULE_LOADING[name] then
 			MODULE_LOADING[name] = true
-			task.spawn(function()
+			_spawn(function()
 				local ok, fetched = pcall(function()
 					return game:HttpGet(BASE .. name .. ".lua")
 				end)
@@ -297,7 +302,7 @@ local function fetchLatestCommitVersion()
 	return formatCommitVersion(date)
 end
 
-task.spawn(function()
+_spawn(function()
 	local v = fetchLatestCommitVersion()
 	if v then
 		credit.Text = "Made by @Lvsyyyyy on GitHub | Version: " .. v
@@ -514,7 +519,7 @@ do
 			rows[name] = b
 		end
 
-		task.defer(function()
+		_defer(function()
 			list.CanvasSize = UDim2.new(0, 0, 0, lo.AbsoluteContentSize.Y + 12)
 			paint()
 		end)
@@ -628,7 +633,7 @@ do
 			rows[name] = b
 		end
 
-		task.defer(function()
+		_defer(function()
 			list.CanvasSize = UDim2.new(0, 0, 0, lo.AbsoluteContentSize.Y + 12)
 			paintRows()
 		end)
@@ -872,7 +877,7 @@ do
 			rows[name] = b
 		end
 
-		task.defer(function()
+		_defer(function()
 			list.CanvasSize = UDim2.new(0, 0, 0, lo.AbsoluteContentSize.Y + 12)
 			paintRows()
 		end)
