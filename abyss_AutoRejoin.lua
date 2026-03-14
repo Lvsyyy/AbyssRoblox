@@ -264,6 +264,8 @@ rejoinNow = function()
 
 	local delay = 0.2
 	while true do
+		local stepWait = delay
+		local bumpDelay = false
 		if pendingTeleport then
 			if os.clock() - pendingTeleportAt > PENDING_TIMEOUT then
 				clearPendingTeleport()
@@ -271,17 +273,20 @@ rejoinNow = function()
 		else
 			if hasKickPrompt() then
 				tryPressReconnect()
-				task.wait(1)
-				goto continue
+				stepWait = 1
 			end
-			if not probeOnline() then
-				waitForConnectivity()
+			if stepWait ~= 1 then
+				if not probeOnline() then
+					waitForConnectivity()
+				end
+				tryRejoinOnce()
+				bumpDelay = true
 			end
-			tryRejoinOnce()
 		end
-		task.wait(delay)
-		delay = math.min(2, delay * 1.2)
-		::continue::
+		task.wait(stepWait)
+		if bumpDelay then
+			delay = math.min(2, delay * 1.2)
+		end
 	end
 end
 
