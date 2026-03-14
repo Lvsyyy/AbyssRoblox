@@ -133,7 +133,7 @@ local queuedThisTeleport = false
 local pendingTeleport = false
 local pendingTeleportAt = 0
 local PENDING_TIMEOUT = 8
-local teleportAttempted = false
+local nextPromptTpAt = 0
 local postProbeCooldownUntil = 0
 local rejoinNow
 
@@ -262,7 +262,7 @@ rejoinNow = function()
 	rejoining = true
 	rejoinArmed = true
 	queuedThisTeleport = false
-	teleportAttempted = false
+	nextPromptTpAt = 0
 	postProbeCooldownUntil = 0
 	task.wait(0.1)
 
@@ -279,36 +279,36 @@ rejoinNow = function()
 				clearPendingTeleport()
 			end
 		else
-			if not teleportAttempted then
-				teleportAttempted = true
-				tryRejoinOnce()
-				bumpDelay = true
+			if hasKickPrompt() then
+				clearPendingTeleport()
+				if promptVisibleSince == 0 then
+					promptVisibleSince = os.clock()
+					nextPromptTpAt = promptVisibleSince + 10
+				end
+				if not probeOnline() then
+					waitForConnectivity()
+				end
+				tryPressReconnect()
+				if os.clock() >= nextPromptTpAt then
+					nextPromptTpAt = os.clock() + 10
+					tryRejoinOnce()
+				end
+				stepWait = 1
 			else
-				if hasKickPrompt() then
-					clearPendingTeleport()
-					if promptVisibleSince == 0 then
-						promptVisibleSince = os.clock()
-					end
-					if not probeOnline() then
-						waitForConnectivity()
-					end
-					tryPressReconnect()
-					stepWait = 1
+				promptVisibleSince = 0
+				nextPromptTpAt = 0
+				if not probeOnline() then
+					waitForConnectivity()
+				end
+				if postProbeCooldownUntil == 0 then
+					postProbeCooldownUntil = os.clock() + 10
+				end
+				if os.clock() >= postProbeCooldownUntil then
+					postProbeCooldownUntil = 0
+					tryRejoinOnce()
+					bumpDelay = true
 				else
-					promptVisibleSince = 0
-					if not probeOnline() then
-						waitForConnectivity()
-					end
-					if postProbeCooldownUntil == 0 then
-						postProbeCooldownUntil = os.clock() + 10
-					end
-					if os.clock() >= postProbeCooldownUntil then
-						postProbeCooldownUntil = 0
-						tryRejoinOnce()
-						bumpDelay = true
-					else
-						stepWait = 1
-					end
+					stepWait = 1
 				end
 			end
 		end
