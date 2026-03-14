@@ -133,7 +133,8 @@ local queuedThisTeleport = false
 local pendingTeleport = false
 local pendingTeleportAt = 0
 local PENDING_TIMEOUT = 8
-local attemptedTeleport = false
+local teleportAttempts = 0
+local MAX_TP_ATTEMPTS = 3
 local rejoinNow
 
 local function markPendingTeleport()
@@ -261,7 +262,7 @@ rejoinNow = function()
 	rejoining = true
 	rejoinArmed = true
 	queuedThisTeleport = false
-	attemptedTeleport = false
+	teleportAttempts = 0
 	task.wait(0.1)
 
 	if queueScriptOnTeleport(buildQueueCode()) then
@@ -277,8 +278,8 @@ rejoinNow = function()
 				clearPendingTeleport()
 			end
 		else
-			if not attemptedTeleport then
-				attemptedTeleport = true
+			if teleportAttempts < MAX_TP_ATTEMPTS then
+				teleportAttempts = teleportAttempts + 1
 				tryRejoinOnce()
 				bumpDelay = true
 			else
@@ -356,6 +357,13 @@ LogService.MessageOut:Connect(function(msg)
 	if t:find("error code 277", 1, true) or t:find("disconnected", 1, true) then
 		task.spawn(rejoinNow)
 	end
+end)
+
+pcall(function()
+	local nc = game:GetService("NetworkClient")
+	nc.ChildRemoved:Connect(function()
+		task.spawn(rejoinNow)
+	end)
 end)
 
 task.spawn(function()
