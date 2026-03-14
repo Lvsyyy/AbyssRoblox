@@ -225,7 +225,7 @@ rejoinNow = function()
 				clearPendingTeleport()
 			end
 		else
-			if hasKickPrompt() and hasReconnectButtonVisible() then
+			if hasReconnectButtonVisible() then
 				clearPendingTeleport()
 				if promptVisibleSince == 0 then
 					promptVisibleSince = os.clock()
