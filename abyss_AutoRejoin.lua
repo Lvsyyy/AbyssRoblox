@@ -7,16 +7,24 @@ local HttpService = game:GetService("HttpService")
 
 local lp = Players.LocalPlayer
 local g = getgenv and getgenv() or _G
-local SCRIPT_URL = "https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/abyss_GUI.lua"
+local GUI_URL = "https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/abyss_GUI.lua"
+local REJOIN_URL = "https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/abyss_AutoRejoin.lua"
+
+if g and g.__abyss_auto_rejoin_loaded then
+	return
+end
+if g then
+	g.__abyss_auto_rejoin_loaded = true
+end
 
 local function runConfiguredScript()
-	if type(SCRIPT_URL) ~= "string" or SCRIPT_URL == "" then
+	if type(GUI_URL) ~= "string" or GUI_URL == "" then
 		return
 	end
 	task.wait(5)
 	for _ = 1, 12 do
 		local ok = pcall(function()
-			loadstring(game:HttpGet(SCRIPT_URL))()
+			loadstring(game:HttpGet(GUI_URL))()
 		end)
 		if ok then
 			return
@@ -41,15 +49,21 @@ local function queueScriptOnTeleport(code)
 	return false
 end
 
-local function buildReexecCode()
-	return ("local u=%q task.wait(5) for i=1,12 do local ok=pcall(function() loadstring(game:HttpGet(u))() end) if ok then break end task.wait(2) end"):format(
-		SCRIPT_URL
-	)
+local function buildGuiReexecCode()
+	return ("local u=%q task.wait(5) for i=1,12 do local ok=pcall(function() loadstring(game:HttpGet(u))() end) if ok then break end task.wait(2) end"):format(GUI_URL)
+end
+
+local function buildAutoRejoinCode()
+	return ("pcall(function() loadstring(game:HttpGet(%q))() end)"):format(REJOIN_URL)
+end
+
+local function buildQueueCode()
+	return buildAutoRejoinCode() .. " " .. buildGuiReexecCode()
 end
 
 -- Queue reexec immediately so any teleport (including reconnect) runs it.
 do
-	local ok = queueScriptOnTeleport(buildReexecCode())
+	local ok = queueScriptOnTeleport(buildQueueCode())
 	if g then
 		g.__abyss_reexec_queued = ok and true or false
 	end
@@ -85,54 +99,31 @@ local function httpGet(url)
 	return nil
 end
 
-local function getLowestPublicServerJobId()
-local cursor = nil
+local PROBE_URL = ("https://games.roblox.com/v1/games?placeIds=%d"):format(game.PlaceId)
 
-while true do
-		local url = ("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100"):format(game.PlaceId)
-		if type(cursor) == "string" and cursor ~= "" then
-			url = url .. "&cursor=" .. HttpService:UrlEncode(cursor)
-		end
-
-	local body = httpGet(url)
-	if not body then
-		break
-	end
-
-		local ok, decoded = pcall(function()
-			return HttpService:JSONDecode(body)
-		end)
-		if not ok or type(decoded) ~= "table" then
-			break
-		end
-
-		local list = decoded.data
-		if type(list) == "table" then
-			for i = 1, #list do
-				local srv = list[i]
-				local id = srv and srv.id
-				local playing = srv and srv.playing
-				local maxPlayers = srv and srv.maxPlayers
-				if type(id) == "string"
-					and id ~= ""
-					and id ~= game.JobId
-					and type(playing) == "number"
-					and type(maxPlayers) == "number"
-					and playing > 0
-					and playing < maxPlayers
-				then
-					return id
-				end
-			end
-		end
-
-		cursor = decoded.nextPageCursor
-		if type(cursor) ~= "string" or cursor == "" then
-			break
-		end
+local function probeOnline()
+	local body = httpGet(PROBE_URL)
+	return type(body) == "string" and body ~= ""
 end
 
-return nil
+local function probeDelay(elapsed)
+	if elapsed < 10 then
+		return 0.5
+	end
+	if elapsed < 30 then
+		return 2
+	end
+	return 10
+end
+
+local function waitForConnectivity()
+	local start = os.clock()
+	while true do
+		if probeOnline() then
+			return true
+		end
+		task.wait(probeDelay(os.clock() - start))
+	end
 end
 
 local rejoining = false
@@ -152,18 +143,6 @@ local function tryRejoinOnce()
 	end
 
 	-- Only scan for a specific server every 3rd failure to reduce latency.
-	if math.random(1, 3) == 1 then
-		local targetJobId = getLowestPublicServerJobId()
-		if targetJobId then
-			local okLowest = pcall(function()
-				TeleportService:TeleportToPlaceInstance(game.PlaceId, targetJobId, lp, nil, teleportData)
-			end)
-			if okLowest then
-				return true
-			end
-		end
-	end
-
 	local okFallback = pcall(function()
 		TeleportService:Teleport(game.PlaceId, lp)
 	end)
@@ -177,7 +156,7 @@ local function rejoinNow()
 	queuedThisTeleport = false
 	task.wait(0.1)
 
-	if queueScriptOnTeleport(buildReexecCode()) then
+	if queueScriptOnTeleport(buildQueueCode()) then
 		queuedThisTeleport = true
 	end
 
@@ -186,8 +165,11 @@ local function rejoinNow()
 		if tryRejoinOnce() then
 			return
 		end
+		if not probeOnline() then
+			waitForConnectivity()
+		end
 		task.wait(delay)
-		delay = math.min(5, delay * 1.2)
+		delay = math.min(2, delay * 1.2)
 	end
 end
 
@@ -335,7 +317,11 @@ lp.OnTeleport:Connect(function(state)
 	if not rejoinArmed then return end
 	if state ~= Enum.TeleportState.InProgress then return end
 	if queuedThisTeleport then return end
-	if queueScriptOnTeleport(buildReexecCode()) then
+	if queueScriptOnTeleport(buildQueueCode()) then
 		queuedThisTeleport = true
 	end
 end)
+
+if g then
+	g.__abyss_rejoin_now = rejoinNow
+end

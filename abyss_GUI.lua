@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
 
 local lp = Players.LocalPlayer
 local pg = lp:WaitForChild("PlayerGui")
@@ -7,7 +8,8 @@ local Common = RS:WaitForChild("common")
 
 local BASE = "https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/"
 local SAVE_PATH = "abyss_settings.json"
-local MODULE_CACHE_DIR = "abyss_cache"
+local MODULE_SRC = {}
+local MODULE_LOADING = {}
 local LOADED_MODULES = {}
 
 local function loadModule(name)
@@ -15,13 +17,15 @@ local function loadModule(name)
 		return LOADED_MODULES[name]
 	end
 
-	local cachePath = MODULE_CACHE_DIR .. "/" .. name .. ".lua"
-	local src
-
-	if isfile and readfile and isfile(cachePath) then
-		local ok, cached = pcall(readfile, cachePath)
-		if ok and type(cached) == "string" and cached ~= "" then
-			src = cached
+	local src = MODULE_SRC[name]
+	if not src and MODULE_LOADING[name] then
+		for _ = 1, 50 do
+			local cached = MODULE_SRC[name]
+			if type(cached) == "string" and cached ~= "" then
+				src = cached
+				break
+			end
+			task.wait()
 		end
 	end
 
@@ -33,24 +37,7 @@ local function loadModule(name)
 			error("Failed to load module: " .. tostring(name))
 		end
 		src = fetched
-		if writefile and type(src) == "string" and src ~= "" then
-			if makefolder then
-				pcall(makefolder, MODULE_CACHE_DIR)
-			end
-			pcall(writefile, cachePath, src)
-		end
-	else
-		task.spawn(function()
-			local ok, fresh = pcall(function()
-				return game:HttpGet(BASE .. name .. ".lua")
-			end)
-			if ok and type(fresh) == "string" and fresh ~= "" and fresh ~= src and writefile then
-				if makefolder then
-					pcall(makefolder, MODULE_CACHE_DIR)
-				end
-				pcall(writefile, cachePath, fresh)
-			end
-		end)
+		MODULE_SRC[name] = src
 	end
 
 	local mod = loadstring(src)
@@ -58,6 +45,91 @@ local function loadModule(name)
 	LOADED_MODULES[name] = result
 	return result
 end
+
+local function saveSettings(path, payload)
+	if not (writefile and type(path) == "string" and type(payload) == "table") then
+		return false
+	end
+	local ok, encoded = pcall(function()
+		return HttpService:JSONEncode(payload)
+	end)
+	if not ok or type(encoded) ~= "string" then
+		return false
+	end
+	return pcall(writefile, path, encoded)
+end
+
+local function parseLegacyFishList(data)
+	local list = {}
+	for line in data:gmatch("[^\r\n]+") do
+		local s = line:gsub("^%s+", ""):gsub("%s+$", "")
+		if s ~= "" then
+			list[#list + 1] = s
+		end
+	end
+	if #list > 0 then
+		return { fishNames = list }
+	end
+	return nil
+end
+
+local function loadSettings(path)
+	if not (isfile and readfile and type(path) == "string" and isfile(path)) then
+		return nil
+	end
+	local okRead, data = pcall(readfile, path)
+	if not okRead or type(data) ~= "string" then
+		return nil
+	end
+
+	local decoded
+	local okJson = pcall(function()
+		decoded = HttpService:JSONDecode(data)
+	end)
+	if okJson and type(decoded) == "table" then
+		return decoded
+	end
+
+	return parseLegacyFishList(data)
+end
+
+local function prefetchModules(list)
+	for i = 1, #list do
+		local name = list[i]
+		if not MODULE_SRC[name] and not MODULE_LOADING[name] then
+			MODULE_LOADING[name] = true
+			task.spawn(function()
+				local ok, fetched = pcall(function()
+					return game:HttpGet(BASE .. name .. ".lua")
+				end)
+				if ok and type(fetched) == "string" and fetched ~= "" then
+					MODULE_SRC[name] = fetched
+				end
+				MODULE_LOADING[name] = false
+			end)
+		end
+	end
+end
+
+local MODULE_LIST = {
+	"abyss_Sell",
+	"abyss_PortableStash",
+	"abyss_ArtifactSets",
+	"abyss_AntiAfk",
+	"abyss_AutoShopBuyer",
+	"abyss_ArtifactScan",
+	"abyss_ArtifactUpdate",
+	"abyss_ArtifactDelete",
+	"abyss_AutoArtifactDelete",
+	"abyss_AutoFishDelete",
+	"abyss_AutoGeode",
+	"abyss_GeodeOnly",
+	"abyss_AutoDaily",
+	"abyss_AutoRejoin",
+	"abyss_AutoRoe",
+}
+
+prefetchModules(MODULE_LIST)
 
 local sellAll = loadModule("abyss_Sell")
 local portableStash = loadModule("abyss_PortableStash")
@@ -72,7 +144,6 @@ local fishAutoDelete = loadModule("abyss_AutoFishDelete")
 local geodeOpener = loadModule("abyss_AutoGeode")
 local geodeOnly = loadModule("abyss_GeodeOnly")
 local autoDaily = loadModule("abyss_AutoDaily")
-local settingsStore = loadModule("abyss_Settings")
 local autoRejoin = loadModule("abyss_AutoRejoin")
 local roe = loadModule("abyss_AutoRoe")
 
@@ -662,7 +733,7 @@ do
 			autoDaily = autoDailyOn,
 			roeAuto = roeAutoOn,
 		}
-		settingsStore.save(SAVE_PATH, payload)
+		saveSettings(SAVE_PATH, payload)
 	end)
 
 	local row6 = makeRow(t, 2, 34)
@@ -770,7 +841,7 @@ do
 end
 
 local function loadSavedSettings()
-	local decoded = settingsStore.load(SAVE_PATH)
+	local decoded = loadSettings(SAVE_PATH)
 	if type(decoded) ~= "table" then
 		return false
 	end
