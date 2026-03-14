@@ -109,23 +109,32 @@ local function probeOnline()
 	return type(body) == "string" and body ~= ""
 end
 
-local function probeDelay(elapsed)
-	if elapsed < 10 then
+local probeCount = 0
+local function nextProbeDelay()
+	probeCount = probeCount + 1
+	if probeCount <= 3 then
 		return 0.5
 	end
-	if elapsed < 30 then
+	if probeCount <= 8 then
 		return 2
 	end
-	return 10
+	return 60
 end
 
 local function waitForConnectivity()
-	local start = os.clock()
 	while true do
 		if probeOnline() then
+			probeCount = 0
 			return true
 		end
-		_wait(probeDelay(os.clock() - start))
+		_wait(nextProbeDelay())
+	end
+end
+
+local function ensureOnline()
+	if not connReady then
+		waitForConnectivity()
+		connReady = true
 	end
 end
 
@@ -136,8 +145,8 @@ local pendingTeleport = false
 local pendingTeleportAt = 0
 local PENDING_TIMEOUT = 8
 local nextPromptTpAt = 0
-local postProbeCooldownUntil = 0
 local rejoinNow
+local connReady = false
 
 local function markPendingTeleport()
 	pendingTeleport = true
@@ -211,7 +220,8 @@ rejoinNow = function()
 	rejoinArmed = true
 	queuedThisTeleport = false
 	nextPromptTpAt = 0
-	postProbeCooldownUntil = 0
+	probeCount = 0
+	connReady = probeOnline()
 	_wait(0.1)
 
 	if queueScriptOnTeleport(buildQueueCode()) then
@@ -233,9 +243,7 @@ rejoinNow = function()
 					promptVisibleSince = os.clock()
 					nextPromptTpAt = promptVisibleSince + 10
 				end
-				if not probeOnline() then
-					waitForConnectivity()
-				end
+				ensureOnline()
 				tryPressReconnect()
 				if os.clock() >= nextPromptTpAt then
 					nextPromptTpAt = os.clock() + 10
@@ -245,19 +253,12 @@ rejoinNow = function()
 			else
 				promptVisibleSince = 0
 				nextPromptTpAt = 0
-				if not probeOnline() then
-					waitForConnectivity()
-				end
-				if postProbeCooldownUntil == 0 then
-					postProbeCooldownUntil = os.clock() + 10
-				end
-				if os.clock() >= postProbeCooldownUntil then
-					postProbeCooldownUntil = 0
+				ensureOnline()
+				if not pendingTeleport then
 					tryRejoinOnce()
 					bumpDelay = true
-				else
-					stepWait = 1
 				end
+				stepWait = 1
 			end
 		end
 		_wait(stepWait)
