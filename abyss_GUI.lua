@@ -231,7 +231,59 @@ credit.TextSize = 11
 credit.TextColor3 = Color3.fromRGB(210, 210, 210)
 credit.TextXAlignment = Enum.TextXAlignment.Center
 credit.TextYAlignment = Enum.TextYAlignment.Center
-credit.Text = "Made by @Lvsyyyyy on GitHub"
+credit.Text = "Made by @Lvsyyyyy on GitHub | Version: --"
+
+local function formatCommitVersion(isoDate)
+	if type(isoDate) ~= "string" then
+		return nil
+	end
+	local ok, dt = pcall(DateTime.fromIsoDate, isoDate)
+	if not ok or not dt then
+		return nil
+	end
+	local t = os.date("!*t", dt.UnixTimestamp)
+	if type(t) ~= "table" then
+		return nil
+	end
+	local day = t.yday
+	local hour = t.hour
+	local min = t.min
+	if type(day) ~= "number" or type(hour) ~= "number" or type(min) ~= "number" then
+		return nil
+	end
+	local hh = string.format("%02d", hour)
+	local mm = string.format("%02d", min)
+	return tostring(day) .. "-" .. hh .. "/" .. mm
+end
+
+local function fetchLatestCommitVersion()
+	local ok, body = pcall(function()
+		return game:HttpGet("https://api.github.com/repos/Lvsyyy/AbyssRoblox/commits?per_page=1")
+	end)
+	if not ok or type(body) ~= "string" then
+		return nil
+	end
+	local okJson, data = pcall(function()
+		return HttpService:JSONDecode(body)
+	end)
+	if not okJson or type(data) ~= "table" then
+		return nil
+	end
+
+	local item = data[1] or data
+	local commit = item and item.commit
+	local committer = commit and commit.committer
+	local author = commit and commit.author
+	local date = (committer and committer.date) or (author and author.date)
+	return formatCommitVersion(date)
+end
+
+task.spawn(function()
+	local v = fetchLatestCommitVersion()
+	if v then
+		credit.Text = "Made by @Lvsyyyyy on GitHub | Version: " .. v
+	end
+end)
 
 local function tabButton(parent, text)
 	local b = Instance.new("TextButton")
