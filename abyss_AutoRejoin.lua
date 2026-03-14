@@ -241,6 +241,11 @@ local function hasKickPrompt()
 	return false
 end
 
+local function hasReconnectButtonVisible()
+	local btn = findReconnectButton(promptOverlay)
+	return btn ~= nil and btn.Visible == true
+end
+
 local lastPromptPress = 0
 local function tryPressReconnect()
 	local now = os.clock()
@@ -279,7 +284,7 @@ rejoinNow = function()
 				clearPendingTeleport()
 			end
 		else
-			if hasKickPrompt() then
+			if hasKickPrompt() and hasReconnectButtonVisible() then
 				clearPendingTeleport()
 				if promptVisibleSince == 0 then
 					promptVisibleSince = os.clock()
