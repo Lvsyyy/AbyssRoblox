@@ -206,46 +206,14 @@ local function pressButton(btn)
 	if not btn then
 		return false
 	end
-	if firesignal then
-		local ok = pcall(function()
-			if btn.MouseButton1Click then
-				firesignal(btn.MouseButton1Click)
-			end
-			if btn.Activated then
-				firesignal(btn.Activated)
-			end
-		end)
-		if ok then
-			return true
-		end
+	if not VirtualInputManager then
+		return false
 	end
-	local okActivate = pcall(function()
-		btn:Activate()
+	return pcall(function()
+		GuiService.SelectedObject = btn
+		VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
+		VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
 	end)
-	if okActivate then
-		return true
-	end
-	if VirtualInputManager then
-		local okKey = pcall(function()
-			GuiService.SelectedObject = btn
-			VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
-			VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
-		end)
-		if okKey then
-			return true
-		end
-	end
-	if VirtualInputManager and btn.AbsoluteSize and btn.AbsolutePosition then
-		local x = btn.AbsolutePosition.X + (btn.AbsoluteSize.X / 2)
-		local y = btn.AbsolutePosition.Y + (btn.AbsoluteSize.Y / 2)
-		pcall(function()
-			GuiService.SelectedObject = btn
-			VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, btn, 0)
-			VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, btn, 0)
-		end)
-		return true
-	end
-	return false
 end
 
 local function isKickPrompt(guiObj)
