@@ -133,8 +133,8 @@ local queuedThisTeleport = false
 local pendingTeleport = false
 local pendingTeleportAt = 0
 local PENDING_TIMEOUT = 8
-local teleportAttempts = 0
-local MAX_TP_ATTEMPTS = 3
+local teleportAttempted = false
+local postProbeCooldownUntil = 0
 local rejoinNow
 
 local function markPendingTeleport()
@@ -262,7 +262,8 @@ rejoinNow = function()
 	rejoining = true
 	rejoinArmed = true
 	queuedThisTeleport = false
-	teleportAttempts = 0
+	teleportAttempted = false
+	postProbeCooldownUntil = 0
 	task.wait(0.1)
 
 	if queueScriptOnTeleport(buildQueueCode()) then
@@ -278,8 +279,8 @@ rejoinNow = function()
 				clearPendingTeleport()
 			end
 		else
-			if teleportAttempts < MAX_TP_ATTEMPTS then
-				teleportAttempts = teleportAttempts + 1
+			if not teleportAttempted then
+				teleportAttempted = true
 				tryRejoinOnce()
 				bumpDelay = true
 			else
@@ -298,8 +299,16 @@ rejoinNow = function()
 					if not probeOnline() then
 						waitForConnectivity()
 					end
-					tryRejoinOnce()
-					bumpDelay = true
+					if postProbeCooldownUntil == 0 then
+						postProbeCooldownUntil = os.clock() + 10
+					end
+					if os.clock() >= postProbeCooldownUntil then
+						postProbeCooldownUntil = 0
+						tryRejoinOnce()
+						bumpDelay = true
+					else
+						stepWait = 1
+					end
 				end
 			end
 		end
