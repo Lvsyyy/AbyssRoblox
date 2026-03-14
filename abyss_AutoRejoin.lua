@@ -129,24 +129,29 @@ end
 local rejoining = false
 local rejoinArmed = false
 local queuedThisTeleport = false
+local pendingTeleport = false
+local pendingTeleportAt = 0
+local PENDING_TIMEOUT = 8
+
+local function markPendingTeleport()
+	pendingTeleport = true
+	pendingTeleportAt = os.clock()
+end
+
+local function clearPendingTeleport()
+	pendingTeleport = false
+	pendingTeleportAt = 0
+end
 
 local function tryRejoinOnce()
 	local teleportData = { __abyss_reexec = true }
-	local options = Instance.new("TeleportOptions")
-	options:SetTeleportData(teleportData)
-
 	local ok = pcall(function()
-		TeleportService:TeleportAsync(game.PlaceId, { lp }, options)
+		TeleportService:Teleport(game.PlaceId, lp, teleportData)
 	end)
 	if ok then
-		return true
+		markPendingTeleport()
 	end
-
-	-- Only scan for a specific server every 3rd failure to reduce latency.
-	local okFallback = pcall(function()
-		TeleportService:Teleport(game.PlaceId, lp)
-	end)
-	return okFallback
+	return ok
 end
 
 local function rejoinNow()
@@ -162,11 +167,15 @@ local function rejoinNow()
 
 	local delay = 0.2
 	while true do
-		if tryRejoinOnce() then
-			return
-		end
-		if not probeOnline() then
-			waitForConnectivity()
+		if pendingTeleport then
+			if os.clock() - pendingTeleportAt > PENDING_TIMEOUT then
+				clearPendingTeleport()
+			end
+		else
+			if not probeOnline() then
+				waitForConnectivity()
+			end
+			tryRejoinOnce()
 		end
 		task.wait(delay)
 		delay = math.min(2, delay * 1.2)
@@ -288,6 +297,7 @@ end)
 
 TeleportService.TeleportInitFailed:Connect(function(player)
 	if player == lp then
+		clearPendingTeleport()
 		task.spawn(rejoinNow)
 	end
 end)
@@ -315,6 +325,14 @@ end)
 
 lp.OnTeleport:Connect(function(state)
 	if not rejoinArmed then return end
+	if state == Enum.TeleportState.Failed then
+		clearPendingTeleport()
+	elseif state == Enum.TeleportState.InProgress
+		or state == Enum.TeleportState.Started
+		or state == Enum.TeleportState.WaitingForServer
+	then
+		markPendingTeleport()
+	end
 	if state ~= Enum.TeleportState.InProgress then return end
 	if queuedThisTeleport then return end
 	if queueScriptOnTeleport(buildQueueCode()) then
