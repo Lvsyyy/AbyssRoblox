@@ -161,16 +161,10 @@ local function hasDisconnectText(root)
 		local inst = texts[i]
 		if inst:IsA("TextLabel") or inst:IsA("TextButton") then
 			local t = string.lower(inst.Text or "")
-			if t:find("kicked", 1, true)
-				or t:find("disconnected", 1, true)
-				or t:find("lost connection", 1, true)
-				or t:find("connection error", 1, true)
-				or t:find("failed to connect", 1, true)
-				or t:find("please check your internet connection", 1, true)
-				or t:find("error code 277", 1, true)
-				or t:find("server shutdown", 1, true)
-				or t:find("session expired", 1, true)
-				or t:find("error code", 1, true)
+			if t:find("kicked", 1, true) or t:find("disconnected", 1, true) or t:find("lost connection", 1, true)
+				or t:find("connection error", 1, true) or t:find("failed to connect", 1, true)
+				or t:find("please check your internet connection", 1, true) or t:find("error code 277", 1, true)
+				or t:find("server shutdown", 1, true) or t:find("session expired", 1, true) or t:find("error code", 1, true)
 			then
 				return true
 			end
@@ -185,11 +179,7 @@ local function findReconnectButton(root)
 		local inst = buttons[i]
 		if inst:IsA("TextButton") then
 			local t = string.lower(inst.Text or "")
-			if t:find("rejoin", 1, true)
-				or t:find("reconnect", 1, true)
-				or t:find("retry", 1, true)
-				or t:find("reconnect", 1, true)
-			then
+			if t:find("rejoin", 1, true) or t:find("reconnect", 1, true) or t:find("retry", 1, true) then
 				return inst
 			end
 		end
@@ -319,12 +309,8 @@ end)
 GuiService.ErrorMessageChanged:Connect(function(msg)
 	if type(msg) == "string" and msg ~= "" then
 		local t = string.lower(msg)
-		if t:find("kicked", 1, true)
-			or t:find("disconnected", 1, true)
-			or t:find("lost connection", 1, true)
-			or t:find("connection error", 1, true)
-			or t:find("failed to connect", 1, true)
-			or t:find("error code 277", 1, true)
+		if t:find("kicked", 1, true) or t:find("disconnected", 1, true) or t:find("lost connection", 1, true)
+			or t:find("connection error", 1, true) or t:find("failed to connect", 1, true) or t:find("error code 277", 1, true)
 		then
 			task.spawn(rejoinNow)
 		end
