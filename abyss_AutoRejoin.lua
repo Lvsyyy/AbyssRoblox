@@ -133,6 +133,7 @@ local queuedThisTeleport = false
 local pendingTeleport = false
 local pendingTeleportAt = 0
 local PENDING_TIMEOUT = 8
+local attemptedTeleport = false
 local rejoinNow
 
 local function markPendingTeleport()
@@ -260,6 +261,7 @@ rejoinNow = function()
 	rejoining = true
 	rejoinArmed = true
 	queuedThisTeleport = false
+	attemptedTeleport = false
 	task.wait(0.1)
 
 	if queueScriptOnTeleport(buildQueueCode()) then
@@ -275,31 +277,29 @@ rejoinNow = function()
 				clearPendingTeleport()
 			end
 		else
-			if hasKickPrompt() then
-				clearPendingTeleport()
-				if promptVisibleSince == 0 then
-					promptVisibleSince = os.clock()
-				end
-				if tryPressReconnect() then
-					stepWait = 1
-				else
-					if os.clock() - promptVisibleSince > 3 then
-						if not probeOnline() then
-							waitForConnectivity()
-						end
-						tryRejoinOnce()
-						bumpDelay = true
-					else
-						stepWait = 1
-					end
-				end
-			else
-				promptVisibleSince = 0
-				if not probeOnline() then
-					waitForConnectivity()
-				end
+			if not attemptedTeleport then
+				attemptedTeleport = true
 				tryRejoinOnce()
 				bumpDelay = true
+			else
+				if hasKickPrompt() then
+					clearPendingTeleport()
+					if promptVisibleSince == 0 then
+						promptVisibleSince = os.clock()
+					end
+					if not probeOnline() then
+						waitForConnectivity()
+					end
+					tryPressReconnect()
+					stepWait = 1
+				else
+					promptVisibleSince = 0
+					if not probeOnline() then
+						waitForConnectivity()
+					end
+					tryRejoinOnce()
+					bumpDelay = true
+				end
 			end
 		end
 		task.wait(stepWait)
