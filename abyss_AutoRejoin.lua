@@ -4,6 +4,7 @@ local CoreGui = game:GetService("CoreGui")
 local GuiService = game:GetService("GuiService")
 local LogService = game:GetService("LogService")
 local HttpService = game:GetService("HttpService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 
 local lp = Players.LocalPlayer
 local g = getgenv and getgenv() or _G
@@ -170,6 +171,10 @@ local function hasDisconnectText(root)
 end
 
 local function findReconnectButton(root)
+	local byName = root:FindFirstChild("ReconnectButton", true)
+	if byName and byName:IsA("GuiButton") then
+		return byName
+	end
 	local buttons = root:GetDescendants()
 	for i = 1, #buttons do
 		local inst = buttons[i]
@@ -214,9 +219,23 @@ local function pressButton(btn)
 			return true
 		end
 	end
-	return pcall(function()
+	local okActivate = pcall(function()
 		btn:Activate()
 	end)
+	if okActivate then
+		return true
+	end
+	if VirtualInputManager and btn.AbsoluteSize and btn.AbsolutePosition then
+		local x = btn.AbsolutePosition.X + (btn.AbsoluteSize.X / 2)
+		local y = btn.AbsolutePosition.Y + (btn.AbsoluteSize.Y / 2)
+		pcall(function()
+			GuiService.SelectedObject = btn
+			VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, btn, 0)
+			VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, btn, 0)
+		end)
+		return true
+	end
+	return false
 end
 
 local function isKickPrompt(guiObj)
