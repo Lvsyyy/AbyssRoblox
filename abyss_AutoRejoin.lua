@@ -279,25 +279,9 @@ task.spawn(function()
 	end
 end)
 
-GuiService.ErrorMessageChanged:Connect(function(msg)
-	if type(msg) == "string" and msg ~= "" then
-		local t = string.lower(msg)
-		if t:find("kicked", 1, true) or t:find("disconnected", 1, true) or t:find("lost connection", 1, true) or t:find("connection error", 1, true) or t:find("failed to connect", 1, true) or t:find("error code 277", 1, true) then
-			task.spawn(rejoinNow)
-		end
-	end
-end)
-
 TeleportService.TeleportInitFailed:Connect(function(player)
 	if player == lp then
 		clearPendingTeleport()
-		task.spawn(rejoinNow)
-	end
-end)
-
-LogService.MessageOut:Connect(function(msg)
-	local t = string.lower(tostring(msg))
-	if t:find("error code 277", 1, true) or t:find("disconnected", 1, true) then
 		task.spawn(rejoinNow)
 	end
 end)
