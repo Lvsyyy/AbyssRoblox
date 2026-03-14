@@ -134,7 +134,6 @@ end
 local function ensureOnline()
 	if not connReady then
 		waitForConnectivity()
-		connReady = true
 	end
 end
 
@@ -221,7 +220,7 @@ rejoinNow = function()
 	queuedThisTeleport = false
 	nextPromptTpAt = 0
 	probeCount = 0
-	connReady = probeOnline()
+	connReady = false
 	_wait(0.1)
 
 	if queueScriptOnTeleport(buildQueueCode()) then
@@ -241,12 +240,10 @@ rejoinNow = function()
 				clearPendingTeleport()
 				if promptVisibleSince == 0 then
 					promptVisibleSince = os.clock()
-					nextPromptTpAt = promptVisibleSince + 10
 				end
 				ensureOnline()
 				tryPressReconnect()
-				if os.clock() >= nextPromptTpAt then
-					nextPromptTpAt = os.clock() + 10
+				if not pendingTeleport then
 					tryRejoinOnce()
 				end
 				stepWait = 1
