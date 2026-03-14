@@ -158,48 +158,10 @@ local function tryRejoinOnce()
 	return ok
 end
 
-local function hasDisconnectText(root)
-	local texts = root:GetDescendants()
-	for i = 1, #texts do
-		local inst = texts[i]
-		if inst:IsA("TextLabel") or inst:IsA("TextButton") then
-			local t = string.lower(inst.Text or "")
-			if t:find("kicked", 1, true) or t:find("disconnected", 1, true) or t:find("lost connection", 1, true) or t:find("connection error", 1, true) or t:find("failed to connect", 1, true) or t:find("please check your internet connection", 1, true) or t:find("error code 277", 1, true) or t:find("server shutdown", 1, true) or t:find("session expired", 1, true) or t:find("error code", 1, true) then
-				return true
-			end
-		end
-	end
-	return false
-end
-
 local function findReconnectButton(root)
-	local byName = root:FindFirstChild("ReconnectButton", true)
-	if byName and byName:IsA("GuiButton") then
-		return byName
-	end
-	local buttons = root:GetDescendants()
-	for i = 1, #buttons do
-		local inst = buttons[i]
-		if inst:IsA("GuiButton") then
-			local t = ""
-			if inst:IsA("TextButton") then
-				t = inst.Text or ""
-			end
-			if t == "" then
-				local kids = inst:GetDescendants()
-				for k = 1, #kids do
-					local kid = kids[k]
-					if kid:IsA("TextLabel") and kid.Text and kid.Text ~= "" then
-						t = kid.Text
-						break
-					end
-				end
-			end
-			local lower = string.lower(t)
-			if lower:find("rejoin", 1, true) or lower:find("reconnect", 1, true) or lower:find("retry", 1, true) then
-				return inst
-			end
-		end
+	local btn = root:FindFirstChild("ReconnectButton", true)
+	if btn and btn:IsA("GuiButton") then
+		return btn
 	end
 	return nil
 end
@@ -218,28 +180,7 @@ local function pressButton(btn)
 	end)
 end
 
-local function isKickPrompt(guiObj)
-	if not guiObj or not guiObj:IsA("GuiObject") then
-		return false
-	end
-	local name = string.lower(guiObj.Name or "")
-	if name:find("error", 1, true) or name:find("prompt", 1, true) or name:find("disconnect", 1, true) or name:find("kick", 1, true) then
-		return hasDisconnectText(guiObj)
-	end
-	return false
-end
-
 local promptOverlay = CoreGui:WaitForChild("RobloxPromptGui"):WaitForChild("promptOverlay")
-
-local function hasKickPrompt()
-	local kids = promptOverlay:GetChildren()
-	for i = 1, #kids do
-		if isKickPrompt(kids[i]) then
-			return true
-		end
-	end
-	return false
-end
 
 local function hasReconnectButtonVisible()
 	local btn = findReconnectButton(promptOverlay)
@@ -324,21 +265,9 @@ rejoinNow = function()
 	end
 end
 
-promptOverlay.ChildAdded:Connect(function(child)
-	if isKickPrompt(child) then
-		task.spawn(rejoinNow)
-	end
+promptOverlay.ChildAdded:Connect(function()
+	task.spawn(rejoinNow)
 end)
-
-do
-	local kids = promptOverlay:GetChildren()
-	for i = 1, #kids do
-		if isKickPrompt(kids[i]) then
-			task.spawn(rejoinNow)
-			break
-		end
-	end
-end
 
 task.spawn(function()
 	while true do
