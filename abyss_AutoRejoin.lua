@@ -132,6 +132,7 @@ local queuedThisTeleport = false
 local pendingTeleport = false
 local pendingTeleportAt = 0
 local PENDING_TIMEOUT = 8
+local rejoinNow
 
 local function markPendingTeleport()
 	pendingTeleport = true
@@ -152,34 +153,6 @@ local function tryRejoinOnce()
 		markPendingTeleport()
 	end
 	return ok
-end
-
-local function rejoinNow()
-	if rejoining then return end
-	rejoining = true
-	rejoinArmed = true
-	queuedThisTeleport = false
-	task.wait(0.1)
-
-	if queueScriptOnTeleport(buildQueueCode()) then
-		queuedThisTeleport = true
-	end
-
-	local delay = 0.2
-	while true do
-		if pendingTeleport then
-			if os.clock() - pendingTeleportAt > PENDING_TIMEOUT then
-				clearPendingTeleport()
-			end
-		else
-			if not probeOnline() then
-				waitForConnectivity()
-			end
-			tryRejoinOnce()
-		end
-		task.wait(delay)
-		delay = math.min(2, delay * 1.2)
-	end
 end
 
 local function hasDisconnectText(root)
@@ -253,6 +226,64 @@ local function isKickPrompt(guiObj)
 end
 
 local promptOverlay = CoreGui:WaitForChild("RobloxPromptGui"):WaitForChild("promptOverlay")
+
+local function hasKickPrompt()
+	local kids = promptOverlay:GetChildren()
+	for i = 1, #kids do
+		if isKickPrompt(kids[i]) then
+			return true
+		end
+	end
+	return false
+end
+
+local lastPromptPress = 0
+local function tryPressReconnect()
+	local now = os.clock()
+	if now - lastPromptPress < 1 then
+		return false
+	end
+	local btn = findReconnectButton(promptOverlay)
+	if btn and pressButton(btn) then
+		lastPromptPress = now
+		return true
+	end
+	return false
+end
+
+rejoinNow = function()
+	if rejoining then return end
+	rejoining = true
+	rejoinArmed = true
+	queuedThisTeleport = false
+	task.wait(0.1)
+
+	if queueScriptOnTeleport(buildQueueCode()) then
+		queuedThisTeleport = true
+	end
+
+	local delay = 0.2
+	while true do
+		if pendingTeleport then
+			if os.clock() - pendingTeleportAt > PENDING_TIMEOUT then
+				clearPendingTeleport()
+			end
+		else
+			if hasKickPrompt() then
+				tryPressReconnect()
+				task.wait(1)
+				goto continue
+			end
+			if not probeOnline() then
+				waitForConnectivity()
+			end
+			tryRejoinOnce()
+		end
+		task.wait(delay)
+		delay = math.min(2, delay * 1.2)
+		::continue::
+	end
+end
 
 promptOverlay.ChildAdded:Connect(function(child)
 	if isKickPrompt(child) then
