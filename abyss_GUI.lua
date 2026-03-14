@@ -13,6 +13,19 @@ local MODULE_LOADING = {}
 local LOADED_MODULES = {}
 
 local function loadModule(name)
+	if type(MODULE_SRC) ~= "table" then
+		MODULE_SRC = {}
+	end
+	if type(MODULE_LOADING) ~= "table" then
+		MODULE_LOADING = {}
+	end
+	if type(LOADED_MODULES) ~= "table" then
+		LOADED_MODULES = {}
+	end
+	if type(name) ~= "string" or name == "" then
+		error("Invalid module name: " .. tostring(name))
+	end
+
 	if LOADED_MODULES[name] then
 		return LOADED_MODULES[name]
 	end
@@ -40,8 +53,14 @@ local function loadModule(name)
 		MODULE_SRC[name] = src
 	end
 
-	local mod = loadstring(src)
-	local result = mod()
+	local mod, err = loadstring(src)
+	if not mod then
+		error("Failed to compile module: " .. tostring(name) .. " (" .. tostring(err) .. ")")
+	end
+	local ok, result = pcall(mod)
+	if not ok then
+		error("Failed to run module: " .. tostring(name) .. " (" .. tostring(result) .. ")")
+	end
 	LOADED_MODULES[name] = result
 	return result
 end
