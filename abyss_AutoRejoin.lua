@@ -8,6 +8,8 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 
 local lp = Players.LocalPlayer
 local g = getgenv and getgenv() or _G
+local _wait = (task and task.wait) or wait
+local _spawn = (task and task.spawn) or spawn
 local GUI_URL = "https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/abyss_GUI.lua"
 local REJOIN_URL = "https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/abyss_AutoRejoin.lua"
 
@@ -22,7 +24,7 @@ local function runConfiguredScript()
 	if type(GUI_URL) ~= "string" or GUI_URL == "" then
 		return
 	end
-	task.wait(5)
+	_wait(5)
 	for _ = 1, 12 do
 		local ok = pcall(function()
 			loadstring(game:HttpGet(GUI_URL))()
@@ -30,7 +32,7 @@ local function runConfiguredScript()
 		if ok then
 			return
 		end
-		task.wait(2)
+		_wait(2)
 	end
 end
 
@@ -123,7 +125,7 @@ local function waitForConnectivity()
 		if probeOnline() then
 			return true
 		end
-		task.wait(probeDelay(os.clock() - start))
+		_wait(probeDelay(os.clock() - start))
 	end
 end
 
@@ -210,7 +212,7 @@ rejoinNow = function()
 	queuedThisTeleport = false
 	nextPromptTpAt = 0
 	postProbeCooldownUntil = 0
-	task.wait(0.1)
+	_wait(0.1)
 
 	if queueScriptOnTeleport(buildQueueCode()) then
 		queuedThisTeleport = true
@@ -258,7 +260,7 @@ rejoinNow = function()
 				end
 			end
 		end
-		task.wait(stepWait)
+		_wait(stepWait)
 		if bumpDelay then
 			delay = math.min(2, delay * 1.2)
 		end
@@ -266,34 +268,34 @@ rejoinNow = function()
 end
 
 promptOverlay.ChildAdded:Connect(function()
-	task.spawn(rejoinNow)
+	_spawn(rejoinNow)
 end)
 
-task.spawn(function()
+_spawn(function()
 	while true do
 		local btn = findReconnectButton(promptOverlay)
 		if btn then
 			pressButton(btn)
 		end
-		task.wait(1)
+		_wait(1)
 	end
 end)
 
 TeleportService.TeleportInitFailed:Connect(function(player)
 	if player == lp then
 		clearPendingTeleport()
-		task.spawn(rejoinNow)
+		_spawn(rejoinNow)
 	end
 end)
 
 pcall(function()
 	local nc = game:GetService("NetworkClient")
 	nc.ChildRemoved:Connect(function()
-		task.spawn(rejoinNow)
+		_spawn(rejoinNow)
 	end)
 end)
 
-task.spawn(function()
+_spawn(function()
 	local ok, teleportData = pcall(function()
 		return TeleportService:GetLocalPlayerTeleportData()
 	end)
