@@ -121,20 +121,14 @@ local function nextProbeDelay()
 	return 60
 end
 
-local function waitForConnectivity()
-	while true do
-		if probeOnline() then
-			probeCount = 0
-			return true
-		end
-		_wait(nextProbeDelay())
-	end
-end
-
 local function ensureOnline()
-	if not connReady then
-		waitForConnectivity()
+	local ok = probeOnline()
+	if ok then
+		probeCount = 0
+	else
+		probeCount = probeCount + 1
 	end
+	return ok
 end
 
 local rejoining = false
@@ -236,27 +230,29 @@ rejoinNow = function()
 				clearPendingTeleport()
 			end
 		else
-			if hasReconnectButtonVisible() then
-				clearPendingTeleport()
-				if promptVisibleSince == 0 then
-					promptVisibleSince = os.clock()
+				if hasReconnectButtonVisible() then
+					clearPendingTeleport()
+					if promptVisibleSince == 0 then
+						promptVisibleSince = os.clock()
+					end
+					local online = ensureOnline()
+					if online then
+						tryPressReconnect()
+					end
+					if not pendingTeleport then
+						tryRejoinOnce()
+					end
+					stepWait = online and 1 or nextProbeDelay()
+				else
+					promptVisibleSince = 0
+					nextPromptTpAt = 0
+					local online = ensureOnline()
+					if not pendingTeleport and (online or probeCount >= 3) then
+						tryRejoinOnce()
+						bumpDelay = true
+					end
+					stepWait = online and 1 or nextProbeDelay()
 				end
-				ensureOnline()
-				tryPressReconnect()
-				if not pendingTeleport then
-					tryRejoinOnce()
-				end
-				stepWait = 1
-			else
-				promptVisibleSince = 0
-				nextPromptTpAt = 0
-				ensureOnline()
-				if not pendingTeleport then
-					tryRejoinOnce()
-					bumpDelay = true
-				end
-				stepWait = 1
-			end
 		end
 		_wait(stepWait)
 		if bumpDelay then
