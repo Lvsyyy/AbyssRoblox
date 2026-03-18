@@ -197,11 +197,38 @@ local TAB_PADDING_TOTAL = 20
 local TAB_ROW_GAP = 10
 
 local FishAssets = Common:WaitForChild("assets"):WaitForChild("fish")
-local GeodeAssets = Common:WaitForChild("assets"):WaitForChild("geodes")
+local GeodeAssets = Common:FindFirstChild("assets")
+GeodeAssets = GeodeAssets and GeodeAssets:FindFirstChild("geodes") or Common:WaitForChild("assets"):WaitForChild("geodes")
 
 local autoDailyOn = autoDaily.getEnabled()
 local geodeOnlyOn = geodeOnly.getEnabled()
 local roeAutoOn = roe.getEnabled()
+
+local function safeGeodeGetNames()
+	if geodeOpener and type(geodeOpener.getNames) == "function" then
+		local ok, res = pcall(geodeOpener.getNames)
+		if ok and type(res) == "table" then
+			return res
+		end
+	end
+	return {}
+end
+
+local function safeGeodeAddName(name)
+	if geodeOpener and type(geodeOpener.addName) == "function" then
+		local ok, res = pcall(geodeOpener.addName, name)
+		if ok then
+			return res == true
+		end
+	end
+	return false
+end
+
+local function safeGeodeSetNames(list)
+	if geodeOpener and type(geodeOpener.setNames) == "function" then
+		pcall(geodeOpener.setNames, list)
+	end
+end
 
 local function setRoeAuto(on)
 	roe.setEnabled(on == true)
@@ -741,7 +768,7 @@ do
 			shopItems = shopBuyer.getItems(),
 			shopEnabled = shopBuyer.getEnabled(),
 			geodeEnabled = geodeOpener.getEnabled(),
-			geodeNames = geodeOpener.getNames(),
+			geodeNames = safeGeodeGetNames(),
 			geodeOnly = geodeOnlyOn,
 			autoDaily = autoDailyOn,
 			roeAuto = roeAutoOn,
@@ -880,7 +907,7 @@ do
 		rows = {}
 
 		table.clear(enabledGeodes)
-		local enabledNames = geodeOpener.getNames()
+		local enabledNames = safeGeodeGetNames()
 		for i = 1, #enabledNames do
 			enabledGeodes[string.lower(enabledNames[i])] = true
 		end
@@ -905,7 +932,7 @@ do
 
 	addBtn.MouseButton1Click:Connect(function()
 		if not selectedGeode then return end
-		if geodeOpener.addName(selectedGeode) then
+		if safeGeodeAddName(selectedGeode) then
 			refreshList()
 		end
 	end)
@@ -925,7 +952,7 @@ do
 			end
 		end
 		if removed then
-			geodeOpener.setNames(keep)
+			safeGeodeSetNames(keep)
 			refreshList()
 		end
 	end)
@@ -1057,7 +1084,7 @@ local function loadSavedSettings()
 		geodeOpener.setEnabled(decoded.geodeEnabled == true)
 	end
 	if type(decoded.geodeNames) == "table" then
-		geodeOpener.setNames(decoded.geodeNames)
+		safeGeodeSetNames(decoded.geodeNames)
 	end
 	if decoded.geodeOnly ~= nil then
 		setGeodeOnly(decoded.geodeOnly == true)
