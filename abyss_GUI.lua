@@ -182,6 +182,7 @@ local applyArtifactAutoDeleteList
 local getArtifactAutoDeleteList
 local setShopToggleVisual
 local refreshShopList
+local refreshGeodeList
 local setGeodeToggleVisual
 local setGeodeOnlyToggleVisual
 local setAutoDailyToggleVisual
@@ -196,6 +197,7 @@ local TAB_PADDING_TOTAL = 20
 local TAB_ROW_GAP = 10
 
 local FishAssets = Common:WaitForChild("assets"):WaitForChild("fish")
+local GeodeAssets = Common:WaitForChild("assets"):WaitForChild("geodes")
 
 local autoDailyOn = autoDaily.getEnabled()
 local geodeOnlyOn = geodeOnly.getEnabled()
@@ -437,6 +439,7 @@ local tabs = {
 	Deletion = makeTabContainer(),
 	Shop = makeTabContainer(),
 	Misc = makeTabContainer(),
+	AFK = makeTabContainer(),
 }
 
 local function showTab(name)
@@ -453,17 +456,19 @@ tabBar.BackgroundTransparency = 1
 
 local tabGrid = Instance.new("UIGridLayout", tabBar)
 tabGrid.CellPadding = UDim2.fromOffset(8, 0)
-tabGrid.CellSize = UDim2.new(1 / 4, -8, 1, 0)
+tabGrid.CellSize = UDim2.new(1 / 5, -8, 1, 0)
 
 local tabArtifacts = tabButton(tabBar, "Artifacts")
 local tabCleanup = tabButton(tabBar, "Deletion")
 local tabShop = tabButton(tabBar, "Shop")
 local tabMisc = tabButton(tabBar, "Misc")
+local tabAfk = tabButton(tabBar, "AFK")
 
 tabArtifacts.MouseButton1Click:Connect(function() showTab("Artifacts") end)
 tabCleanup.MouseButton1Click:Connect(function() showTab("Deletion") end)
 tabShop.MouseButton1Click:Connect(function() showTab("Shop") end)
 tabMisc.MouseButton1Click:Connect(function() showTab("Misc") end)
+tabAfk.MouseButton1Click:Connect(function() showTab("AFK") end)
 
 -- Artifacts tab
 do
@@ -699,24 +704,69 @@ do
 		function() artifactSets.equipSpeedSet() end
 	)
 
-	local row2 = makeRow(t, 2, 34)
-	local autoDailyBtn = makeButton(row2, "Auto Daily: OFF", BTN_RED)
-	local function setAutoDailyToggleVisualImpl(on)
+	local row2 = makeRow(t, 3, 34)
+	makeButton(row2, "Sell All", BTN_PURPLE).MouseButton1Click:Connect(
+		function() sellAll.sellAll() end
+	)
+	makeButton(row2, "Collect Roe", BTN_PURPLE).MouseButton1Click:Connect(function()
+		roe.collect()
+	end)
+	makeButton(row2, "Sell Roe", BTN_PURPLE).MouseButton1Click:Connect(function()
+		roe.sell()
+	end)
+
+	local row3 = makeRow(t, 2, 34)
+	local geodeOnlyBtn = makeButton(row3, "Geode only: OFF", BTN_RED)
+	local function setGeodeOnlyToggleVisualImpl(on)
 		if on then
-			autoDailyBtn.Text = "Auto Daily: ON"
-			autoDailyBtn.BackgroundColor3 = BTN_GREEN
+			geodeOnlyBtn.Text = "Geode only: ON"
+			geodeOnlyBtn.BackgroundColor3 = BTN_GREEN
 		else
-			autoDailyBtn.Text = "Auto Daily: OFF"
-			autoDailyBtn.BackgroundColor3 = BTN_RED
+			geodeOnlyBtn.Text = "Geode only: OFF"
+			geodeOnlyBtn.BackgroundColor3 = BTN_RED
 		end
 	end
-	setAutoDailyToggleVisual = setAutoDailyToggleVisualImpl
-	autoDailyBtn.MouseButton1Click:Connect(function()
-		setAutoDaily(not autoDailyOn)
+	setGeodeOnlyToggleVisual = setGeodeOnlyToggleVisualImpl
+	geodeOnlyBtn.MouseButton1Click:Connect(function()
+		setGeodeOnly(not geodeOnlyOn)
 	end)
-	setAutoDailyToggleVisualImpl(autoDailyOn)
+	setGeodeOnlyToggleVisualImpl(geodeOnlyOn)
 
-	local antiBtn = makeButton(row2, "Anti AFK: OFF", BTN_RED)
+	makeButton(row3, "Save Settings", BTN_PURPLE).MouseButton1Click:Connect(function()
+		local payload = {
+			fishNames = fishAutoDelete.getNames(),
+			fishEnabled = fishAutoDelete.getEnabled(),
+			antiAfk = antiOn,
+			artifactAutoDelete = getArtifactAutoDeleteList and getArtifactAutoDeleteList() or {},
+			shopItems = shopBuyer.getItems(),
+			shopEnabled = shopBuyer.getEnabled(),
+			geodeEnabled = geodeOpener.getEnabled(),
+			geodeNames = geodeOpener.getNames(),
+			geodeOnly = geodeOnlyOn,
+			autoDaily = autoDailyOn,
+			roeAuto = roeAutoOn,
+		}
+		saveSettings(SAVE_PATH, payload)
+	end)
+
+	local row4 = makeRow(t, 2, 34)
+	makeButton(row4, "Deposit", BTN_GREEN).MouseButton1Click:Connect(
+		function()
+			portableStash.rebuildHotbarFishCache()
+			portableStash.depositFishByWeightDesc()
+		end
+	)
+	makeButton(row4, "Withdraw", BTN_RED).MouseButton1Click:Connect(
+		function() portableStash.withdrawAll() end
+	)
+end
+
+-- AFK tab
+do
+	local t = tabs["AFK"]
+
+	local row1 = makeRow(t, 2, 34)
+	local antiBtn = makeButton(row1, "Anti AFK: OFF", BTN_RED)
 	setAntiAfk = function(on)
 		antiOn = on == true
 		if antiOn then
@@ -733,8 +783,24 @@ do
 		setAntiAfk(not antiOn)
 	end)
 
-	local row3 = makeRow(t, 2, 34)
-	local openGeodeBtn = makeButton(row3, "Open Geode: OFF", BTN_RED)
+	local autoDailyBtn = makeButton(row1, "Auto Daily: OFF", BTN_RED)
+	local function setAutoDailyToggleVisualImpl(on)
+		if on then
+			autoDailyBtn.Text = "Auto Daily: ON"
+			autoDailyBtn.BackgroundColor3 = BTN_GREEN
+		else
+			autoDailyBtn.Text = "Auto Daily: OFF"
+			autoDailyBtn.BackgroundColor3 = BTN_RED
+		end
+	end
+	setAutoDailyToggleVisual = setAutoDailyToggleVisualImpl
+	autoDailyBtn.MouseButton1Click:Connect(function()
+		setAutoDaily(not autoDailyOn)
+	end)
+	setAutoDailyToggleVisualImpl(autoDailyOn)
+
+	local row2 = makeRow(t, 2, 34)
+	local openGeodeBtn = makeButton(row2, "Open Geode: OFF", BTN_RED)
 	local function setGeodeToggleVisualImpl(on)
 		if on then
 			openGeodeBtn.Text = "Open Geode: ON"
@@ -749,34 +815,10 @@ do
 		geodeOpener.setEnabled(on)
 		setGeodeToggleVisualImpl(on)
 	end)
-
-	local geodeOnlyBtn = makeButton(row3, "Geode only: OFF", BTN_RED)
-	local function setGeodeOnlyToggleVisualImpl(on)
-		if on then
-			geodeOnlyBtn.Text = "Geode only: ON"
-			geodeOnlyBtn.BackgroundColor3 = BTN_GREEN
-		else
-			geodeOnlyBtn.Text = "Geode only: OFF"
-			geodeOnlyBtn.BackgroundColor3 = BTN_RED
-		end
-	end
-	setGeodeOnlyToggleVisual = setGeodeOnlyToggleVisualImpl
-	geodeOnlyBtn.MouseButton1Click:Connect(function()
-		setGeodeOnly(not geodeOnlyOn)
-	end)
-
 	setGeodeToggleVisual = setGeodeToggleVisualImpl
 	setGeodeToggleVisualImpl(geodeOpener.getEnabled())
-	setGeodeOnlyToggleVisualImpl(geodeOnlyOn)
 
-	local row4 = makeRow(t, 3, 34)
-	makeButton(row4, "Collect Roe", BTN_PURPLE).MouseButton1Click:Connect(function()
-		roe.collect()
-	end)
-	makeButton(row4, "Sell Roe", BTN_PURPLE).MouseButton1Click:Connect(function()
-		roe.sell()
-	end)
-	local roeToggleBtn = makeButton(row4, "Auto Roe: OFF", BTN_RED)
+	local roeToggleBtn = makeButton(row2, "Auto Roe: OFF", BTN_RED)
 	local function setRoeToggleVisualImpl(on)
 		if on then
 			roeToggleBtn.Text = "Auto Roe: ON"
@@ -792,36 +834,101 @@ do
 	end)
 	setRoeToggleVisualImpl(roeAutoOn)
 
-	local row5 = makeRow(t, 2, 34)
-	makeButton(row5, "Sell All", BTN_PURPLE).MouseButton1Click:Connect(
-		function() sellAll.sellAll() end
-	)
-	makeButton(row5, "Save Settings", BTN_PURPLE).MouseButton1Click:Connect(function()
-		local payload = {
-			fishNames = fishAutoDelete.getNames(),
-			fishEnabled = fishAutoDelete.getEnabled(),
-			antiAfk = antiOn,
-			artifactAutoDelete = getArtifactAutoDeleteList and getArtifactAutoDeleteList() or {},
-			shopItems = shopBuyer.getItems(),
-			shopEnabled = shopBuyer.getEnabled(),
-			geodeEnabled = geodeOpener.getEnabled(),
-			geodeOnly = geodeOnlyOn,
-			autoDaily = autoDailyOn,
-			roeAuto = roeAutoOn,
-		}
-		saveSettings(SAVE_PATH, payload)
+	local row3 = makeRow(t, 2, 34)
+	local addBtn = makeButton(row3, "Add", BTN_GREEN)
+	local removeBtn = makeButton(row3, "Remove", BTN_RED)
+
+	local list, lo = makeScrollingList(t, getListHeight({ 34, 34, 34 }))
+	local selectedGeode
+	local rows = {}
+	local enabledGeodes = {}
+
+	local function rowColor(name)
+		if enabledGeodes[string.lower(name)] then
+			return Color3.fromRGB(58, 120, 66)
+		end
+		return (name == selectedGeode and Color3.fromRGB(70, 94, 138) or Color3.fromRGB(45, 45, 54))
+	end
+
+	local function paintRows()
+		for name, b in pairs(rows) do
+			if b.Parent then
+				b.BackgroundColor3 = rowColor(name)
+			end
+		end
+	end
+
+	local function getGeodeModelNames()
+		local out = {}
+		local kids = GeodeAssets:GetChildren()
+		for i = 1, #kids do
+			local inst = kids[i]
+			if inst:IsA("Model") then
+				out[#out + 1] = inst.Name
+			end
+		end
+		table.sort(out)
+		return out
+	end
+
+	local function refreshList()
+		for _, b in pairs(rows) do
+			if b.Parent then
+				b:Destroy()
+			end
+		end
+		rows = {}
+
+		table.clear(enabledGeodes)
+		local enabledNames = geodeOpener.getNames()
+		for i = 1, #enabledNames do
+			enabledGeodes[string.lower(enabledNames[i])] = true
+		end
+
+		local names = getGeodeModelNames()
+		for i = 1, #names do
+			local name = names[i]
+			local b = makeSelectableRow(list, name, rowColor(name), function()
+				selectedGeode = name
+				paintRows()
+			end)
+			rows[name] = b
+		end
+
+		_defer(function()
+			list.CanvasSize = UDim2.new(0, 0, 0, lo.AbsoluteContentSize.Y + 12)
+			paintRows()
+		end)
+	end
+	refreshGeodeList = refreshList
+	refreshList()
+
+	addBtn.MouseButton1Click:Connect(function()
+		if not selectedGeode then return end
+		if geodeOpener.addName(selectedGeode) then
+			refreshList()
+		end
 	end)
 
-	local row6 = makeRow(t, 2, 34)
-	makeButton(row6, "Deposit", BTN_GREEN).MouseButton1Click:Connect(
-		function()
-			portableStash.rebuildHotbarFishCache()
-			portableStash.depositFishByWeightDesc()
+	removeBtn.MouseButton1Click:Connect(function()
+		if not selectedGeode then return end
+		local names = geodeOpener.getNames()
+		local keep = {}
+		local removed = false
+		local target = string.lower(selectedGeode)
+		for i = 1, #names do
+			local n = names[i]
+			if string.lower(n) ~= target then
+				keep[#keep + 1] = n
+			else
+				removed = true
+			end
 		end
-	)
-	makeButton(row6, "Withdraw", BTN_RED).MouseButton1Click:Connect(
-		function() portableStash.withdrawAll() end
-	)
+		if removed then
+			geodeOpener.setNames(keep)
+			refreshList()
+		end
+	end)
 end
 
 -- Shop tab
@@ -949,6 +1056,9 @@ local function loadSavedSettings()
 	if decoded.geodeEnabled ~= nil then
 		geodeOpener.setEnabled(decoded.geodeEnabled == true)
 	end
+	if type(decoded.geodeNames) == "table" then
+		geodeOpener.setNames(decoded.geodeNames)
+	end
 	if decoded.geodeOnly ~= nil then
 		setGeodeOnly(decoded.geodeOnly == true)
 	end
@@ -963,6 +1073,9 @@ local function loadSavedSettings()
 	end
 	if setGeodeToggleVisual then
 		setGeodeToggleVisual(geodeOpener.getEnabled())
+	end
+	if refreshGeodeList then
+		refreshGeodeList()
 	end
 	if setAutoDailyToggleVisual then
 		setAutoDailyToggleVisual(autoDailyOn)
@@ -993,6 +1106,9 @@ if not hasLoadedSettings then
 	end
 	if setGeodeOnlyToggleVisual then
 		setGeodeOnlyToggleVisual(geodeOnlyOn)
+	end
+	if refreshGeodeList then
+		refreshGeodeList()
 	end
 	if setAutoDailyToggleVisual then
 		setAutoDailyToggleVisual(autoDailyOn)

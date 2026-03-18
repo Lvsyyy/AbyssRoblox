@@ -15,6 +15,9 @@ local openRF = RS:WaitForChild("common")
 
 local artifactFolder = WS:WaitForChild("Game"):WaitForChild("ArtifactAnim"):WaitForChild("Artifact")
 
+local nameSet = { ["coconut"] = true }
+local nameList = { "Coconut" }
+
 local function getItemId(inst)
 	local id = inst:GetAttribute("id") or inst:GetAttribute("Id")
 	if type(id) == "string" and id ~= "" then
@@ -47,18 +50,36 @@ local function parseAmountText(s)
 	return nil
 end
 
-local function isCoconutGeodeRow(inst)
-	local class = string.lower(tostring(inst:GetAttribute("class") or ""))
-	local name = string.lower(tostring(inst:GetAttribute("name") or ""))
-	local full = string.lower(tostring(inst:GetAttribute("fullname") or ""))
+local function normalizeName(s)
+	return string.lower(tostring(s or ""))
+end
 
-	if class ~= "geodes" then
-		return false
-	end
-	if name == "coconut" then
+local function matchesGeodeName(value, key)
+	if value == "" then return false end
+	if value == key then return true end
+	if value == (key .. " geode") or value == ("geode " .. key) then
 		return true
 	end
-	return full == "coconut geode" or (full:find("coconut", 1, true) and full:find("geode", 1, true))
+	if value:find(key, 1, true) and value:find("geode", 1, true) then
+		return true
+	end
+	return false
+end
+
+local function getSelectedGeodeKey(inst)
+	local class = normalizeName(inst:GetAttribute("class"))
+	if class ~= "geodes" then
+		return nil
+	end
+
+	local name = normalizeName(inst:GetAttribute("name"))
+	local full = normalizeName(inst:GetAttribute("fullname"))
+	for key in pairs(nameSet) do
+		if matchesGeodeName(name, key) or matchesGeodeName(full, key) then
+			return key
+		end
+	end
+	return nil
 end
 
 local function getRowAmount(inst)
@@ -80,18 +101,21 @@ local function getRowAmount(inst)
 	return 1
 end
 
-local function getCoconutGeodeCount()
+local function getSelectedGeodeCounts()
 	local main = pg:FindFirstChild("Main")
-	if not main then return 0 end
+	if not main then return {} end
 	local backpackGui = main:FindFirstChild("Backpack")
-	if not backpackGui then return 0 end
+	if not backpackGui then return {} end
 
 	local list = backpackGui:FindFirstChild("List")
 		and backpackGui.List:FindFirstChild("CanvasGroup")
 		and backpackGui.List.CanvasGroup:FindFirstChild("ScrollingFrame")
 	local hotbar = backpackGui:FindFirstChild("Hotbar")
 	local seenIds = {}
-	local total = 0
+	local totals = {}
+	for key in pairs(nameSet) do
+		totals[key] = 0
+	end
 
 	local function scan(container)
 		if not container then return end
@@ -100,10 +124,10 @@ local function getCoconutGeodeCount()
 			local inst = kids[i]
 			if inst.ClassName == "Frame" then
 				local id = getItemId(inst)
-				if id and seenIds[id] then
-				else
-					if isCoconutGeodeRow(inst) then
-						total += getRowAmount(inst)
+				if not (id and seenIds[id]) then
+					local key = getSelectedGeodeKey(inst)
+					if key then
+						totals[key] = (totals[key] or 0) + getRowAmount(inst)
 					end
 					if id then
 						seenIds[id] = true
@@ -115,7 +139,7 @@ local function getCoconutGeodeCount()
 
 	scan(list)
 	scan(hotbar)
-	return total
+	return totals
 end
 
 local enabled = false
@@ -126,9 +150,17 @@ local function openGeode()
 		return
 	end
 
-	local count = getCoconutGeodeCount()
-	if count > 0 then
-		openRF:InvokeServer("Coconut", math.min(99, count))
+	if #nameList == 0 then return end
+
+	local counts = getSelectedGeodeCounts()
+	for i = 1, #nameList do
+		local name = nameList[i]
+		local key = normalizeName(name)
+		local count = counts[key] or 0
+		if count > 0 then
+			openRF:InvokeServer(name, math.min(99, count))
+			return
+		end
 	end
 end
 
@@ -160,8 +192,53 @@ local function getEnabled()
 	return enabled
 end
 
+local function setNames(list)
+	table.clear(nameSet)
+	table.clear(nameList)
+	for i = 1, #list do
+		local name = list[i]
+		if type(name) == "string" and name ~= "" then
+			local key = normalizeName(name)
+			if not nameSet[key] then
+				nameSet[key] = true
+				nameList[#nameList + 1] = name
+			end
+		end
+	end
+end
+
+local function addName(name)
+	if type(name) ~= "string" or name == "" then
+		return false
+	end
+	local key = normalizeName(name)
+	if nameSet[key] then
+		return false
+	end
+	nameSet[key] = true
+	nameList[#nameList + 1] = name
+	return true
+end
+
+local function clearNames()
+	table.clear(nameSet)
+	table.clear(nameList)
+end
+
+local function getNames()
+	local out = table.create(#nameList)
+	for i = 1, #nameList do
+		out[i] = nameList[i]
+	end
+	return out
+end
+
 return {
 	openGeode = openGeode,
 	setEnabled = setEnabled,
 	getEnabled = getEnabled,
+	setNames = setNames,
+	addName = addName,
+	clearNames = clearNames,
+	getNames = getNames,
 }
