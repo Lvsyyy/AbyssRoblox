@@ -731,19 +731,38 @@ do
 		function() artifactSets.equipSpeedSet() end
 	)
 
+	local raceEquipRF = RS:WaitForChild("common")
+		:WaitForChild("packages")
+		:WaitForChild("Knit")
+		:WaitForChild("Services")
+		:WaitForChild("RaceService")
+		:WaitForChild("RF")
+		:WaitForChild("EquipSlot")
+
 	local row2 = makeRow(t, 3, 34)
-	makeButton(row2, "Sell All", BTN_PURPLE).MouseButton1Click:Connect(
+	makeButton(row2, "Vamp", BTN_PURPLE).MouseButton1Click:Connect(function()
+		raceEquipRF:InvokeServer("1")
+	end)
+	makeButton(row2, "Shark", BTN_PURPLE).MouseButton1Click:Connect(function()
+		raceEquipRF:InvokeServer("2")
+	end)
+	makeButton(row2, "Angler", BTN_PURPLE).MouseButton1Click:Connect(function()
+		raceEquipRF:InvokeServer("3")
+	end)
+
+	local row3 = makeRow(t, 3, 34)
+	makeButton(row3, "Sell All", BTN_PURPLE).MouseButton1Click:Connect(
 		function() sellAll.sellAll() end
 	)
-	makeButton(row2, "Collect Roe", BTN_PURPLE).MouseButton1Click:Connect(function()
+	makeButton(row3, "Collect Roe", BTN_PURPLE).MouseButton1Click:Connect(function()
 		roe.collect()
 	end)
-	makeButton(row2, "Sell Roe", BTN_PURPLE).MouseButton1Click:Connect(function()
+	makeButton(row3, "Sell Roe", BTN_PURPLE).MouseButton1Click:Connect(function()
 		roe.sell()
 	end)
 
-	local row3 = makeRow(t, 2, 34)
-	local geodeOnlyBtn = makeButton(row3, "Geode only: OFF", BTN_RED)
+	local row4 = makeRow(t, 2, 34)
+	local geodeOnlyBtn = makeButton(row4, "Geode only: OFF", BTN_RED)
 	local function setGeodeOnlyToggleVisualImpl(on)
 		if on then
 			geodeOnlyBtn.Text = "Geode only: ON"
@@ -759,7 +778,7 @@ do
 	end)
 	setGeodeOnlyToggleVisualImpl(geodeOnlyOn)
 
-	makeButton(row3, "Save Settings", BTN_PURPLE).MouseButton1Click:Connect(function()
+	makeButton(row4, "Save Settings", BTN_PURPLE).MouseButton1Click:Connect(function()
 		local payload = {
 			fishNames = fishAutoDelete.getNames(),
 			fishEnabled = fishAutoDelete.getEnabled(),
@@ -776,14 +795,14 @@ do
 		saveSettings(SAVE_PATH, payload)
 	end)
 
-	local row4 = makeRow(t, 2, 34)
-	makeButton(row4, "Deposit", BTN_GREEN).MouseButton1Click:Connect(
+	local row5 = makeRow(t, 2, 34)
+	makeButton(row5, "Deposit", BTN_GREEN).MouseButton1Click:Connect(
 		function()
 			portableStash.rebuildHotbarFishCache()
 			portableStash.depositFishByWeightDesc()
 		end
 	)
-	makeButton(row4, "Withdraw", BTN_RED).MouseButton1Click:Connect(
+	makeButton(row5, "Withdraw", BTN_RED).MouseButton1Click:Connect(
 		function() portableStash.withdrawAll() end
 	)
 end
