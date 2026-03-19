@@ -284,7 +284,14 @@ credit.TextSize = 11
 credit.TextColor3 = Color3.fromRGB(210, 210, 210)
 credit.TextXAlignment = Enum.TextXAlignment.Center
 credit.TextYAlignment = Enum.TextYAlignment.Center
-credit.Text = "Made by @Lvsyyyyy on GitHub | Version: --"
+credit.Text = "Made by @Lvsyyyyy on GitHub | Version: -- | Next Geode: --:--"
+
+local versionText = "--"
+local nextGeodeText = "--:--"
+
+local function updateCredit()
+	credit.Text = "Made by @Lvsyyyyy on GitHub | Version: " .. versionText .. " | Next Geode: " .. nextGeodeText
+end
 
 local function formatCommitVersion(isoDate)
 	if type(isoDate) ~= "string" then
@@ -334,7 +341,61 @@ end
 _spawn(function()
 	local v = fetchLatestCommitVersion()
 	if v then
-		credit.Text = "Made by @Lvsyyyyy on GitHub | Version: " .. v
+		versionText = v
+		updateCredit()
+	end
+end)
+
+local function findGeodeTimerLabel()
+	local gameFolder = workspace:FindFirstChild("Game")
+	local artifactAnim = gameFolder and gameFolder:FindFirstChild("ArtifactAnim")
+	local artifact = artifactAnim and artifactAnim:FindFirstChild("Artifact")
+	if not artifact then
+		return nil
+	end
+	local kids = artifact:GetChildren()
+	for i = 1, #kids do
+		local model = kids[i]
+		if model:IsA("Model") then
+			local root = model:FindFirstChild("RootPart")
+			local gp = (root and root:FindFirstChild("geodeProcess", true)) or model:FindFirstChild("geodeProcess", true)
+			if gp then
+				local frame = gp:FindFirstChild("Frame", true)
+				local label = frame and frame:FindFirstChild("Label", true)
+				if label and label:IsA("TextLabel") then
+					return label
+				end
+			end
+		end
+	end
+	return nil
+end
+
+local function getGeodeTimerText()
+	local label = findGeodeTimerLabel()
+	if not label then
+		return "--:--"
+	end
+	if label.Visible == false then
+		return "--:--"
+	end
+	local t = label.Text
+	if type(t) ~= "string" or t == "" then
+		return "--:--"
+	end
+	return t
+end
+
+_spawn(function()
+	local last = nil
+	while true do
+		local t = getGeodeTimerText()
+		if t ~= last then
+			last = t
+			nextGeodeText = t
+			updateCredit()
+		end
+		_wait(0.5)
 	end
 end)
 
