@@ -175,6 +175,9 @@ portableStash.init()
 fishAutoDelete.init()
 
 local antiOn = false
+local autoDepositOn = false
+local autoDepositNext = 0
+local autoDepositToken = 0
 local setAntiAfk
 local setFishToggleVisual
 local refreshFishList
@@ -253,6 +256,59 @@ local function setGeodeOnly(on)
 	if setGeodeOnlyToggleVisual then
 		setGeodeOnlyToggleVisual(geodeOnlyOn)
 	end
+end
+
+local function getStorageFolder()
+	local gameFolder = workspace:FindFirstChild("Game")
+	return gameFolder and gameFolder:FindFirstChild("Storage") or nil
+end
+
+local function setAutoDeposit(on, button)
+	autoDepositOn = on == true
+	autoDepositToken += 1
+	if button then
+		if autoDepositOn then
+			button.Text = "Auto Deposit: ON"
+			button.BackgroundColor3 = BTN_GREEN
+		else
+			button.Text = "Auto Deposit: OFF"
+			button.BackgroundColor3 = BTN_RED
+		end
+	end
+	if not autoDepositOn then
+		return
+	end
+
+	local token = autoDepositToken
+	_spawn(function()
+		local storage = getStorageFolder()
+		while autoDepositOn and token == autoDepositToken do
+			local character = lp.Character
+			local hrp = character and character:FindFirstChild("HumanoidRootPart")
+			if hrp then
+				storage = storage or getStorageFolder()
+				if storage then
+					local now = os.clock()
+					if now >= autoDepositNext then
+						local kids = storage:GetChildren()
+						for i = 1, #kids do
+							local stash = kids[i]
+							local root = stash:FindFirstChild("RootPart") or stash.PrimaryPart
+							if root and root:IsA("BasePart") then
+								if (root.Position - hrp.Position).Magnitude <= 15 then
+									portableStash.rebuildHotbarFishCache()
+									portableStash.depositFishByWeightDesc()
+									autoDepositNext = now + 2
+									break
+								end
+							end
+						end
+					end
+				end
+			end
+			_wait(0.5)
+		end
+	end)
 end
 
 local old = pg:FindFirstChild("AbyssQoLGui")
@@ -365,14 +421,26 @@ local function getStashText()
 	return cleaned
 end
 
-local function findGeodeTimerLabel()
-	local gameFolder = workspace:FindFirstChild("Game")
-	local artifactAnim = gameFolder and gameFolder:FindFirstChild("ArtifactAnim")
-	local artifact = artifactAnim and artifactAnim:FindFirstChild("Artifact")
-	if not artifact then
+local artifactFolder = workspace:FindFirstChild("Game")
+	and workspace.Game:FindFirstChild("ArtifactAnim")
+	and workspace.Game.ArtifactAnim:FindFirstChild("Artifact")
+
+local geodeLabel = nil
+local geodeConn = nil
+
+local function setNextGeodeText(text)
+	local t = (type(text) == "string" and text ~= "" and text) or "--:--"
+	if nextGeodeText ~= t then
+		nextGeodeText = t
+		updateCredit()
+	end
+end
+
+local function resolveGeodeLabel()
+	if not artifactFolder then
 		return nil
 	end
-	local kids = artifact:GetChildren()
+	local kids = artifactFolder:GetChildren()
 	for i = 1, #kids do
 		local model = kids[i]
 		if model:IsA("Model") then
@@ -390,32 +458,52 @@ local function findGeodeTimerLabel()
 	return nil
 end
 
-local function getGeodeTimerText()
-	local label = findGeodeTimerLabel()
-	if not label then
-		return "--:--"
+local function disconnectGeode()
+	if geodeConn then
+		geodeConn:Disconnect()
+		geodeConn = nil
 	end
-	if label.Visible == false then
-		return "--:--"
+	geodeLabel = nil
+	setNextGeodeText("--:--")
+end
+
+local function attachGeode(label)
+	if not (label and label:IsA("TextLabel")) then
+		return
 	end
-	local t = label.Text
-	if type(t) ~= "string" or t == "" then
-		return "--:--"
+	if geodeConn then
+		geodeConn:Disconnect()
 	end
-	return t
+	geodeLabel = label
+	setNextGeodeText(label.Visible and label.Text or "--:--")
+	geodeConn = label:GetPropertyChangedSignal("Text"):Connect(function()
+		if geodeLabel then
+			setNextGeodeText(geodeLabel.Visible and geodeLabel.Text or "--:--")
+		end
+	end)
+end
+
+local function refreshGeodeLabel()
+	local label = resolveGeodeLabel()
+	if label then
+		attachGeode(label)
+	else
+		disconnectGeode()
+	end
+end
+
+if artifactFolder then
+	artifactFolder.ChildAdded:Connect(function()
+		refreshGeodeLabel()
+	end)
+	artifactFolder.ChildRemoved:Connect(function()
+		refreshGeodeLabel()
+	end)
 end
 
 _spawn(function()
-	local last = nil
-	while true do
-		local t = getGeodeTimerText()
-		if t ~= last then
-			last = t
-			nextGeodeText = t
-			updateCredit()
-		end
-		_wait(0.5)
-	end
+	_wait(1)
+	refreshGeodeLabel()
 end)
 
 _spawn(function()
@@ -888,7 +976,7 @@ do
 		saveSettings(SAVE_PATH, payload)
 	end)
 
-	local row5 = makeRow(t, 2, 34)
+	local row5 = makeRow(t, 3, 34)
 	makeButton(row5, "Deposit", BTN_GREEN).MouseButton1Click:Connect(
 		function()
 			portableStash.rebuildHotbarFishCache()
@@ -898,6 +986,11 @@ do
 	makeButton(row5, "Withdraw", BTN_RED).MouseButton1Click:Connect(
 		function() portableStash.withdrawAll() end
 	)
+	local autoDepositBtn = makeButton(row5, "Auto Deposit: OFF", BTN_RED)
+	autoDepositBtn.MouseButton1Click:Connect(function()
+		setAutoDeposit(not autoDepositOn, autoDepositBtn)
+	end)
+	setAutoDeposit(autoDepositOn, autoDepositBtn)
 end
 
 -- AFK tab
