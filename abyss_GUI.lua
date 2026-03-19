@@ -284,13 +284,14 @@ credit.TextSize = 11
 credit.TextColor3 = Color3.fromRGB(210, 210, 210)
 credit.TextXAlignment = Enum.TextXAlignment.Center
 credit.TextYAlignment = Enum.TextYAlignment.Center
-credit.Text = "Made by @Lvsyyyyy on GitHub | Version: -- | Next Geode: --:--"
+credit.Text = "Made by @Lvsyyyyy on GitHub | Version: -- | Stash: --/-- | Next Geode: --:--"
 
 local versionText = "--"
+local stashText = "--/--"
 local nextGeodeText = "--:--"
 
 local function updateCredit()
-	credit.Text = "Made by @Lvsyyyyy on GitHub | Version: " .. versionText .. " | Next Geode: " .. nextGeodeText
+	credit.Text = "Made by @Lvsyyyyy on GitHub | Version: " .. versionText .. " | Stash: " .. stashText .. " | Next Geode: " .. nextGeodeText
 end
 
 local function formatCommitVersion(isoDate)
@@ -346,6 +347,24 @@ _spawn(function()
 	end
 end)
 
+local function getStashText()
+	local main = pg:FindFirstChild("Main")
+	local cap = main
+		and main:FindFirstChild("Center")
+		and main.Center:FindFirstChild("Storage")
+		and main.Center.Storage:FindFirstChild("Capacity")
+		and main.Center.Storage.Capacity:FindFirstChild("Capacity")
+	if not (cap and cap:IsA("TextLabel")) then
+		return "--/--"
+	end
+	local text = cap.Text or ""
+	local cleaned = tostring(text):gsub("[^%d/]", "")
+	if cleaned == "" then
+		return "--/--"
+	end
+	return cleaned
+end
+
 local function findGeodeTimerLabel()
 	local gameFolder = workspace:FindFirstChild("Game")
 	local artifactAnim = gameFolder and gameFolder:FindFirstChild("ArtifactAnim")
@@ -393,6 +412,19 @@ _spawn(function()
 		if t ~= last then
 			last = t
 			nextGeodeText = t
+			updateCredit()
+		end
+		_wait(0.5)
+	end
+end)
+
+_spawn(function()
+	local last = nil
+	while true do
+		local t = getStashText()
+		if t ~= last then
+			last = t
+			stashText = t
 			updateCredit()
 		end
 		_wait(0.5)
