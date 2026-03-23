@@ -56,19 +56,37 @@ local function stripSizeWords(s)
 	return table.concat(parts, " "):gsub("^%s+", ""):gsub("%s+$", "")
 end
 
-local function parseMutationAndFish(text)
+local function parseMutationAndFish(text, mutationMap)
 	local cleaned = stripTags(text)
 	if cleaned == "" then
 		return nil, nil
 	end
+
+	-- Prefer tagged mutation if present
 	local tagText = extractTagText(text)
 	if tagText ~= "" and cleaned:sub(1, #tagText + 1) == tagText .. " " then
 		local mutation = stripSizeWords(tagText)
 		if mutation == "" then
 			mutation = nil
 		end
-		return mutation, cleaned:sub(#tagText + 2)
+		local fish = cleaned:sub(#tagText + 2)
+		fish = stripSizeWords(fish)
+		return mutation, fish
 	end
+
+	-- Fallback: detect mutation prefix even without tags
+	if type(mutationMap) == "table" then
+		local lower = cleaned:lower()
+		for name in pairs(mutationMap) do
+			local n = name:lower()
+			if lower:sub(1, #n + 1) == n .. " " then
+				local fish = cleaned:sub(#name + 2)
+				fish = stripSizeWords(fish)
+				return name, fish
+			end
+		end
+	end
+
 	return nil, cleaned
 end
 
@@ -86,7 +104,7 @@ end
 local function computeValue(frame, baseText)
 	local fishName = frame:GetAttribute("name")
 	local full = frame:GetAttribute("fullname")
-	local mutation, parsedFish = parseMutationAndFish(type(full) == "string" and full or baseText)
+	local mutation, parsedFish = parseMutationAndFish(type(full) == "string" and full or baseText, MutationPriceMultiplier)
 	local fish = fishName or parsedFish
 	if type(fish) ~= "string" or fish == "" then
 		return nil
