@@ -1131,29 +1131,79 @@ do
 		saveSettings(SAVE_PATH, payload)
 	end)
 
-	local pondDepositRF = RS:WaitForChild("common")
-		:WaitForChild("packages")
-		:WaitForChild("Knit")
-		:WaitForChild("Services")
-		:WaitForChild("FishPondService")
-		:WaitForChild("RF")
-		:WaitForChild("Deposit")
-	local pondWithdrawRF = RS.common.packages.Knit.Services.FishPondService.RF:WaitForChild("Withdraw")
+local pondDepositRF = RS:WaitForChild("common")
+	:WaitForChild("packages")
+	:WaitForChild("Knit")
+	:WaitForChild("Services")
+	:WaitForChild("FishPondService")
+	:WaitForChild("RF")
+	:WaitForChild("Deposit")
+local pondWithdrawRF = RS.common.packages.Knit.Services.FishPondService.RF:WaitForChild("Withdraw")
 
-	local row5 = makeRow(t, 2, 34)
-	makeButton(row5, "Pond Deposit", BTN_PURPLE).MouseButton1Click:Connect(function()
-		local pondId = getActivePondId()
-		local fishId = getBestFishId()
-		if not pondId or not fishId then return end
-		local args = { { fishId } }
+local function getAllFishIds()
+	local backpack = pg:FindFirstChild("Main")
+		and pg.Main:FindFirstChild("Backpack")
+	if not backpack then
+		return {}
+	end
+	local list = backpack.List.CanvasGroup.ScrollingFrame
+	local hotbar = backpack.Hotbar
+	local ids = {}
+	local seen = {}
+
+	local function scan(container)
+		for _, inst in ipairs(container:GetChildren()) do
+			if inst:IsA("Frame") and inst:GetAttribute("class") == "fish" then
+				local id = inst:GetAttribute("id")
+				if isId(id) and not seen[id] then
+					seen[id] = true
+					ids[#ids + 1] = id
+				end
+			end
+		end
+	end
+
+	if list then scan(list) end
+	if hotbar then scan(hotbar) end
+	return ids
+end
+
+local function getPondFishIds()
+	local pondList = pg:FindFirstChild("Main")
+		and pg.Main:FindFirstChild("Center")
+		and pg.Main.Center:FindFirstChild("FishPond")
+		and pg.Main.Center.FishPond:FindFirstChild("Main")
+		and pg.Main.Center.FishPond.Main:FindFirstChild("fishStorage")
+		and pg.Main.Center.FishPond.Main.fishStorage:FindFirstChild("List")
+	if not pondList then
+		return {}
+	end
+	local ids = {}
+	for _, inst in ipairs(pondList:GetChildren()) do
+		if isId(inst.Name) then
+			ids[#ids + 1] = inst.Name
+		end
+	end
+	return ids
+end
+
+local row5 = makeRow(t, 2, 34)
+makeButton(row5, "Pond Deposit", BTN_GREEN).MouseButton1Click:Connect(function()
+	local ids = getAllFishIds()
+	if #ids == 0 then return end
+	for i = 1, #ids do
+		local args = { { ids[i] } }
 		pondDepositRF:InvokeServer(unpack(args))
-	end)
-	makeButton(row5, "Pond Withdraw", BTN_PURPLE).MouseButton1Click:Connect(function()
-		local pondId = getActivePondId()
-		if not pondId then return end
-		local args = { pondId }
+	end
+end)
+makeButton(row5, "Pond Withdraw", BTN_RED).MouseButton1Click:Connect(function()
+	local pondIds = getPondFishIds()
+	if #pondIds == 0 then return end
+	for i = 1, #pondIds do
+		local args = { pondIds[i] }
 		pondWithdrawRF:InvokeServer(unpack(args))
-	end)
+	end
+end)
 
 	local row6 = makeRow(t, 3, 34)
 	makeButton(row6, "Deposit", BTN_GREEN).MouseButton1Click:Connect(
