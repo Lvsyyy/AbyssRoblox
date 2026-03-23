@@ -199,19 +199,14 @@ local function scanContainer(container)
 end
 
 local function resolveData(data)
-	if type(data) == "table" then
-		if data.FishBaseValue or data.MutationPriceMultiplier then
-			return data
-		end
+	if type(data) ~= "table" then
+		return nil
 	end
-	-- Fallback: fetch scan module from repo if available
-	local ok, mod = pcall(function()
-		local src = game:HttpGet("https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/abyss_FishValueScan.lua")
-		local chunk = loadstring(src)
-		return chunk and chunk() or nil
-	end)
-	if ok and type(mod) == "table" and type(mod.get) == "function" then
-		local okGet, res = pcall(mod.get)
+	if data.FishBaseValue or data.MutationPriceMultiplier then
+		return data
+	end
+	if type(data.get) == "function" then
+		local okGet, res = pcall(data.get)
 		if okGet and type(res) == "table" then
 			return res
 		end
