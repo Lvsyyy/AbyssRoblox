@@ -339,6 +339,21 @@ local function computeFishValue(frame)
 	if frame:GetAttribute("class") ~= "fish" then
 		return nil
 	end
+	-- Prefer value already rendered on the label
+	local label = frame:FindFirstChild("Btn")
+		and frame.Btn:FindFirstChild("Frame")
+		and frame.Btn.Frame:FindFirstChild("Item")
+	if label and label:IsA("TextLabel") then
+		local text = tostring(label.Text or "")
+		local valText = text:match("%$([%d,]+)")
+		if valText then
+			local num = tonumber(valText:gsub(",", ""), 10)
+			if num then
+				return num
+			end
+		end
+	end
+
 	local fishName = frame:GetAttribute("name")
 	local full = frame:GetAttribute("fullname")
 	local mutation, fish = parseMutationAndFish(type(full) == "string" and full or "", fishName)
