@@ -151,6 +151,7 @@ local MODULE_LIST = {
 	"abyss_AutoDaily",
 	"abyss_AutoRejoin",
 	"abyss_AutoRoe",
+	"abyss_FishValueIndicator",
 }
 
 prefetchModules(MODULE_LIST)
@@ -170,9 +171,13 @@ local geodeOnly = loadModule("abyss_GeodeOnly")
 local autoDaily = loadModule("abyss_AutoDaily")
 local autoRejoin = loadModule("abyss_AutoRejoin")
 local roe = loadModule("abyss_AutoRoe")
+local fishValueIndicator = loadModule("abyss_FishValueIndicator")
 
 portableStash.init()
 fishAutoDelete.init()
+if fishValueIndicator and fishValueIndicator.init then
+	fishValueIndicator.init()
+end
 
 local antiOn = false
 local autoDepositOn = false
