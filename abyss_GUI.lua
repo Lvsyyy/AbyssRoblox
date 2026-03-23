@@ -1168,6 +1168,45 @@ local function getAllFishIds()
 	return ids
 end
 
+local function getAllFishIdsSortedByValue()
+	local backpack = pg:FindFirstChild("Main")
+		and pg.Main:FindFirstChild("Backpack")
+	if not backpack then
+		return {}
+	end
+	local list = backpack.List.CanvasGroup.ScrollingFrame
+	local hotbar = backpack.Hotbar
+
+	local rows = {}
+	local seen = {}
+
+	local function scan(container)
+		for _, inst in ipairs(container:GetChildren()) do
+			if inst:IsA("Frame") and inst:GetAttribute("class") == "fish" then
+				local id = inst:GetAttribute("id")
+				if isId(id) and not seen[id] then
+					seen[id] = true
+					local val = computeFishValue(inst) or 0
+					rows[#rows + 1] = { id = id, value = val }
+				end
+			end
+		end
+	end
+
+	if list then scan(list) end
+	if hotbar then scan(hotbar) end
+
+	table.sort(rows, function(a, b)
+		return a.value > b.value
+	end)
+
+	local out = {}
+	for i = 1, #rows do
+		out[i] = rows[i].id
+	end
+	return out
+end
+
 local function getPondFishIds()
 	local pondList = pg:FindFirstChild("Main")
 		and pg.Main:FindFirstChild("Center")
@@ -1189,7 +1228,7 @@ end
 
 local row5 = makeRow(t, 2, 34)
 makeButton(row5, "Pond Deposit", BTN_GREEN).MouseButton1Click:Connect(function()
-	local ids = getAllFishIds()
+	local ids = getAllFishIdsSortedByValue()
 	if #ids == 0 then return end
 	for i = 1, #ids do
 		local args = { { ids[i] } }
