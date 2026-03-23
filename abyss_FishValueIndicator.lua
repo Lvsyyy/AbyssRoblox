@@ -10,6 +10,11 @@ local pg = lp:WaitForChild("PlayerGui")
 
 local FishBaseValue = DB.FishBaseValue or {}
 local MutationPriceMultiplier = DB.MutationPriceMultiplier or {}
+local StarMultiplier = {
+	[1] = 0.5,
+	[2] = 0.75,
+	[3] = 1,
+}
 
 local sizeBlacklist = {
 	["Small"] = true,
@@ -94,7 +99,9 @@ local function computeValue(frame, baseText)
 
 	local weight = tonumber(frame:GetAttribute("weight")) or 1
 	local mult = MutationPriceMultiplier[mutation] or 1
-	local value = base * weight * mult
+	local stars = tonumber(frame:GetAttribute("stars")) or 3
+	local starMult = StarMultiplier[stars] or 1
+	local value = base * weight * mult * starMult
 	if not value then
 		return nil
 	end
@@ -172,4 +179,3 @@ end
 return {
 	init = init,
 }
-
