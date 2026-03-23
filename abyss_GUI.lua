@@ -152,6 +152,7 @@ local MODULE_LIST = {
 	"abyss_AutoRejoin",
 	"abyss_AutoRoe",
 	"abyss_FishValueIndicator",
+	"abyss_FishValueDB",
 }
 
 prefetchModules(MODULE_LIST)
@@ -172,6 +173,7 @@ local autoDaily = loadModule("abyss_AutoDaily")
 local autoRejoin = loadModule("abyss_AutoRejoin")
 local roe = loadModule("abyss_AutoRoe")
 local fishValueIndicator = loadModule("abyss_FishValueIndicator")
+local fishValueDB = loadModule("abyss_FishValueDB")
 
 portableStash.init()
 fishAutoDelete.init()
@@ -207,6 +209,10 @@ local TAB_ROW_GAP = 10
 local FishAssets = Common:WaitForChild("assets"):WaitForChild("fish")
 local GeodeAssets = Common:FindFirstChild("assets")
 GeodeAssets = GeodeAssets and GeodeAssets:FindFirstChild("geodes") or Common:WaitForChild("assets"):WaitForChild("geodes")
+
+local FishBaseValue = (fishValueDB and fishValueDB.FishBaseValue) or {}
+local MutationPriceMultiplier = (fishValueDB and fishValueDB.MutationPriceMultiplier) or {}
+local StarMultiplier = { [1] = 0.5, [2] = 0.75, [3] = 1 }
 
 local autoDailyOn = autoDaily.getEnabled()
 local geodeOnlyOn = geodeOnly.getEnabled()
@@ -266,6 +272,150 @@ end
 local function getStorageFolder()
 	local gameFolder = workspace:FindFirstChild("Game")
 	return gameFolder and gameFolder:FindFirstChild("Storage") or nil
+end
+
+local function isId(str)
+	return type(str) == "string" and #str == 32 and str:match("^[a-f0-9]+$") ~= nil
+end
+
+local sizeBlacklist = {
+	["Small"] = true,
+	["Big"] = true,
+	["Giant"] = true,
+}
+
+local function stripTags(text)
+	if type(text) ~= "string" then
+		return ""
+	end
+	local cleaned = text:gsub("<[^>]->", "")
+	cleaned = cleaned:gsub("^%s+", ""):gsub("%s+$", "")
+	cleaned = cleaned:gsub("%s+", " ")
+	return cleaned
+end
+
+local function extractTagText(text)
+	if type(text) ~= "string" then
+		return ""
+	end
+	local out = {}
+	for inner in text:gmatch("<[^>]->%s*([^<]-)%s*</") do
+		if inner and inner ~= "" then
+			out[#out + 1] = inner
+		end
+	end
+	local s = table.concat(out, " "):gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
+	return s
+end
+
+local function stripSizeWords(s)
+	local parts = {}
+	for word in string.gmatch(s, "[^%s]+") do
+		if not sizeBlacklist[word] then
+			parts[#parts + 1] = word
+		end
+	end
+	return table.concat(parts, " "):gsub("^%s+", ""):gsub("%s+$", "")
+end
+
+local function parseMutationAndFish(fullname, nameFallback)
+	local cleaned = stripTags(fullname)
+	if cleaned == "" then
+		return nil, nameFallback
+	end
+	local tagText = extractTagText(fullname)
+	if tagText ~= "" and cleaned:sub(1, #tagText + 1) == tagText .. " " then
+		local mutation = stripSizeWords(tagText)
+		if mutation == "" then
+			mutation = nil
+		end
+		local fish = cleaned:sub(#tagText + 2)
+		return mutation, fish
+	end
+	return nil, nameFallback or cleaned
+end
+
+local function computeFishValue(frame)
+	if frame:GetAttribute("class") ~= "fish" then
+		return nil
+	end
+	local fishName = frame:GetAttribute("name")
+	local full = frame:GetAttribute("fullname")
+	local mutation, fish = parseMutationAndFish(type(full) == "string" and full or "", fishName)
+	if type(fish) ~= "string" or fish == "" then
+		return nil
+	end
+	local base = FishBaseValue[fish]
+	if not base then
+		return nil
+	end
+	local weight = tonumber(frame:GetAttribute("weight")) or 1
+	local stars = tonumber(frame:GetAttribute("stars")) or 3
+	local starMult = StarMultiplier[stars] or 1
+	local mutMult = MutationPriceMultiplier[mutation] or 1
+	local value = base * weight * starMult * mutMult
+	if not value then
+		return nil
+	end
+	return math.floor(value + 0.5)
+end
+
+local function getBestFishId()
+	local backpack = pg:FindFirstChild("Main")
+		and pg.Main:FindFirstChild("Backpack")
+	if not backpack then
+		return nil
+	end
+	local list = backpack.List.CanvasGroup.ScrollingFrame
+	local hotbar = backpack.Hotbar
+
+	local bestId, bestValue = nil, -1
+	local seen = {}
+
+	local function scan(container)
+		for _, inst in ipairs(container:GetChildren()) do
+			if inst:IsA("Frame") and inst:GetAttribute("class") == "fish" then
+				local id = inst:GetAttribute("id")
+				if isId(id) and not seen[id] then
+					local val = computeFishValue(inst)
+					if val and val > bestValue then
+						bestValue = val
+						bestId = id
+					end
+				end
+				if isId(id) then
+					seen[id] = true
+				end
+			end
+		end
+	end
+
+	if list then
+		scan(list)
+	end
+	if hotbar then
+		scan(hotbar)
+	end
+
+	return bestId
+end
+
+local function getActivePondId()
+	local pondList = pg:FindFirstChild("Main")
+		and pg.Main:FindFirstChild("Center")
+		and pg.Main.Center:FindFirstChild("FishPond")
+		and pg.Main.Center.FishPond:FindFirstChild("Main")
+		and pg.Main.Center.FishPond.Main:FindFirstChild("fishStorage")
+		and pg.Main.Center.FishPond.Main.fishStorage:FindFirstChild("List")
+	if not pondList then
+		return nil
+	end
+	for _, inst in ipairs(pondList:GetChildren()) do
+		if isId(inst.Name) then
+			return inst.Name
+		end
+	end
+	return nil
 end
 
 local function setAutoDeposit(on, button)
@@ -981,17 +1131,41 @@ do
 		saveSettings(SAVE_PATH, payload)
 	end)
 
-	local row5 = makeRow(t, 3, 34)
-	makeButton(row5, "Deposit", BTN_GREEN).MouseButton1Click:Connect(
+	local pondDepositRF = RS:WaitForChild("common")
+		:WaitForChild("packages")
+		:WaitForChild("Knit")
+		:WaitForChild("Services")
+		:WaitForChild("FishPondService")
+		:WaitForChild("RF")
+		:WaitForChild("Deposit")
+	local pondWithdrawRF = RS.common.packages.Knit.Services.FishPondService.RF:WaitForChild("Withdraw")
+
+	local row5 = makeRow(t, 2, 34)
+	makeButton(row5, "Pond Deposit", BTN_PURPLE).MouseButton1Click:Connect(function()
+		local pondId = getActivePondId()
+		local fishId = getBestFishId()
+		if not pondId or not fishId then return end
+		local args = { { fishId } }
+		pondDepositRF:InvokeServer(unpack(args))
+	end)
+	makeButton(row5, "Pond Withdraw", BTN_PURPLE).MouseButton1Click:Connect(function()
+		local pondId = getActivePondId()
+		if not pondId then return end
+		local args = { pondId }
+		pondWithdrawRF:InvokeServer(unpack(args))
+	end)
+
+	local row6 = makeRow(t, 3, 34)
+	makeButton(row6, "Deposit", BTN_GREEN).MouseButton1Click:Connect(
 		function()
 			portableStash.rebuildHotbarFishCache()
 			portableStash.depositFishByWeightDesc()
 		end
 	)
-	makeButton(row5, "Withdraw", BTN_RED).MouseButton1Click:Connect(
+	makeButton(row6, "Withdraw", BTN_RED).MouseButton1Click:Connect(
 		function() portableStash.withdrawAll() end
 	)
-	local autoDepositBtn = makeButton(row5, "Auto Deposit: OFF", BTN_RED)
+	local autoDepositBtn = makeButton(row6, "Auto Deposit: OFF", BTN_RED)
 	autoDepositBtn.MouseButton1Click:Connect(function()
 		setAutoDeposit(not autoDepositOn, autoDepositBtn)
 	end)
