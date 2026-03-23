@@ -152,7 +152,7 @@ local MODULE_LIST = {
 	"abyss_AutoRejoin",
 	"abyss_AutoRoe",
 	"abyss_FishValueIndicator",
-	"abyss_FishValueDB",
+	"abyss_FishValueScan",
 }
 
 prefetchModules(MODULE_LIST)
@@ -173,12 +173,22 @@ local autoDaily = loadModule("abyss_AutoDaily")
 local autoRejoin = loadModule("abyss_AutoRejoin")
 local roe = loadModule("abyss_AutoRoe")
 local fishValueIndicator = loadModule("abyss_FishValueIndicator")
-local fishValueDB = loadModule("abyss_FishValueDB")
+local fishValueScan = loadModule("abyss_FishValueScan")
+
+local fishValueData = {}
+if fishValueScan and type(fishValueScan.get) == "function" then
+	local ok, res = pcall(fishValueScan.get)
+	if ok and type(res) == "table" then
+		fishValueData = res
+	end
+elseif type(fishValueScan) == "table" then
+	fishValueData = fishValueScan
+end
 
 portableStash.init()
 fishAutoDelete.init()
 if fishValueIndicator and fishValueIndicator.init then
-	fishValueIndicator.init()
+	fishValueIndicator.init(fishValueData)
 end
 
 local antiOn = false
@@ -210,8 +220,8 @@ local FishAssets = Common:WaitForChild("assets"):WaitForChild("fish")
 local GeodeAssets = Common:FindFirstChild("assets")
 GeodeAssets = GeodeAssets and GeodeAssets:FindFirstChild("geodes") or Common:WaitForChild("assets"):WaitForChild("geodes")
 
-local FishBaseValue = (fishValueDB and fishValueDB.FishBaseValue) or {}
-local MutationPriceMultiplier = (fishValueDB and fishValueDB.MutationPriceMultiplier) or {}
+local FishBaseValue = (fishValueData and fishValueData.FishBaseValue) or {}
+local MutationPriceMultiplier = (fishValueData and fishValueData.MutationPriceMultiplier) or {}
 local StarMultiplier = { [1] = 0.5, [2] = 0.75, [3] = 1 }
 
 local autoDailyOn = autoDaily.getEnabled()

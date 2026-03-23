@@ -2,14 +2,16 @@
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
 
-local BASE = "https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/"
-local DB = loadstring(game:HttpGet(BASE .. "abyss_FishValueDB.lua"))()
-
 local lp = Players.LocalPlayer
 local pg = lp:WaitForChild("PlayerGui")
 
-local FishBaseValue = DB.FishBaseValue or {}
-local MutationPriceMultiplier = DB.MutationPriceMultiplier or {}
+local FishBaseValue = {}
+local MutationPriceMultiplier = {}
+local mutationCache = {}
+local mutationsFolder = RS:WaitForChild("common")
+	:WaitForChild("presets")
+	:WaitForChild("fish")
+	:WaitForChild("mutations")
 local StarMultiplier = {
 	[1] = 0.5,
 	[2] = 0.75,
@@ -80,6 +82,38 @@ local function getBaseText(label)
 	return firstLine
 end
 
+local function resolveMutationMultiplier(name)
+	if not name or name == "" then
+		return 1
+	end
+	if mutationCache[name] then
+		return mutationCache[name]
+	end
+	if MutationPriceMultiplier[name] then
+		mutationCache[name] = MutationPriceMultiplier[name]
+		return mutationCache[name]
+	end
+	-- try to load mutation module by name (case-insensitive)
+	local target = name:lower()
+	local mod = mutationsFolder:FindFirstChild(name) or nil
+	if not mod then
+		for _, child in ipairs(mutationsFolder:GetChildren()) do
+			if child:IsA("ModuleScript") and child.Name:lower() == target then
+				mod = child
+				break
+			end
+		end
+	end
+	if mod and mod:IsA("ModuleScript") then
+		local ok, data = pcall(require, mod)
+		if ok and type(data) == "table" and data.price_multiplier then
+			mutationCache[name] = data.price_multiplier
+			return mutationCache[name]
+		end
+	end
+	return 1
+end
+
 local function computeValue(frame, baseText)
 	local fishName = frame:GetAttribute("name")
 	local full = frame:GetAttribute("fullname")
@@ -95,7 +129,7 @@ local function computeValue(frame, baseText)
 	end
 
 	local weight = tonumber(frame:GetAttribute("weight")) or 1
-	local mult = MutationPriceMultiplier[mutation] or 1
+	local mult = resolveMutationMultiplier(mutation)
 	local stars = tonumber(frame:GetAttribute("stars")) or 3
 	local starMult = StarMultiplier[stars] or 1
 	local value = base * weight * mult * starMult
@@ -164,7 +198,33 @@ local function scanContainer(container)
 	end)
 end
 
-local function init()
+local function resolveData(data)
+	if type(data) == "table" then
+		if data.FishBaseValue or data.MutationPriceMultiplier then
+			return data
+		end
+	end
+	-- Fallback: fetch scan module from repo if available
+	local ok, mod = pcall(function()
+		local src = game:HttpGet("https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/abyss_FishValueScan.lua")
+		local chunk = loadstring(src)
+		return chunk and chunk() or nil
+	end)
+	if ok and type(mod) == "table" and type(mod.get) == "function" then
+		local okGet, res = pcall(mod.get)
+		if okGet and type(res) == "table" then
+			return res
+		end
+	end
+	return nil
+end
+
+local function init(data)
+	local resolved = resolveData(data)
+	if type(resolved) == "table" then
+		FishBaseValue = resolved.FishBaseValue or {}
+		MutationPriceMultiplier = resolved.MutationPriceMultiplier or {}
+	end
 	local main = pg:WaitForChild("Main")
 	local backpack = main:WaitForChild("Backpack")
 	local list = backpack.List.CanvasGroup.ScrollingFrame
