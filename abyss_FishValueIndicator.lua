@@ -16,12 +16,6 @@ local StarMultiplier = {
 	[3] = 1,
 }
 
-local sizeBlacklist = {
-	["Small"] = true,
-	["Big"] = true,
-	["Giant"] = true,
-}
-
 local function stripTags(text)
 	if type(text) ~= "string" then
 		return ""
@@ -46,16 +40,6 @@ local function extractTagText(text)
 	return s
 end
 
-local function stripSizeWords(s)
-	local parts = {}
-	for word in string.gmatch(s, "[^%s]+") do
-		if not sizeBlacklist[word] then
-			parts[#parts + 1] = word
-		end
-	end
-	return table.concat(parts, " "):gsub("^%s+", ""):gsub("%s+$", "")
-end
-
 local function parseMutationAndFish(text, mutationMap)
 	local cleaned = stripTags(text)
 	if cleaned == "" then
@@ -65,12 +49,8 @@ local function parseMutationAndFish(text, mutationMap)
 	-- Prefer tagged mutation if present
 	local tagText = extractTagText(text)
 	if tagText ~= "" and cleaned:sub(1, #tagText + 1) == tagText .. " " then
-		local mutation = stripSizeWords(tagText)
-		if mutation == "" then
-			mutation = nil
-		end
+		local mutation = tagText
 		local fish = cleaned:sub(#tagText + 2)
-		fish = stripSizeWords(fish)
 		return mutation, fish
 	end
 
@@ -81,7 +61,6 @@ local function parseMutationAndFish(text, mutationMap)
 			local n = name:lower()
 			if lower:sub(1, #n + 1) == n .. " " then
 				local fish = cleaned:sub(#name + 2)
-				fish = stripSizeWords(fish)
 				return name, fish
 			end
 		end
