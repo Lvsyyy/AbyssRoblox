@@ -103,8 +103,8 @@ local function httpGet(url)
 end
 
 local PROBE_URL = ("https://games.roblox.com/v1/games?placeIds=%d"):format(game.PlaceId)
-local SERVER_MIN_PLAYERS = 4
-local SERVER_MAX_PLAYERS = 7
+local SERVER_MIN_PLAYERS = 3
+local SERVER_MAX_PLAYERS = 8
 local SERVER_URL = ("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100"):format(game.PlaceId)
 
 local function probeOnline()
