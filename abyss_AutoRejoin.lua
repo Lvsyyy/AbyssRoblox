@@ -103,6 +103,9 @@ local function httpGet(url)
 end
 
 local PROBE_URL = ("https://games.roblox.com/v1/games?placeIds=%d"):format(game.PlaceId)
+local SERVER_MIN_PLAYERS = 4
+local SERVER_MAX_PLAYERS = 7
+local SERVER_URL = ("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100"):format(game.PlaceId)
 
 local function probeOnline()
 	local body = httpGet(PROBE_URL)
@@ -160,9 +163,55 @@ end
 
 local function tryRejoinOnce()
 	local teleportData = { __abyss_reexec = true }
-	local ok = pcall(function()
-		TeleportService:Teleport(game.PlaceId, lp, teleportData)
-	end)
+	local ok = false
+	local serverId = nil
+
+	local function pickServer()
+		local cursor = nil
+		for _ = 1, 5 do
+			local url = SERVER_URL
+			if cursor then
+				url = url .. "&cursor=" .. HttpService:UrlEncode(cursor)
+			end
+			local body = httpGet(url)
+			if type(body) ~= "string" then
+				return nil
+			end
+			local okJson, data = pcall(function()
+				return HttpService:JSONDecode(body)
+			end)
+			if not okJson or type(data) ~= "table" then
+				return nil
+			end
+			local list = data.data
+			if type(list) == "table" then
+				for i = 1, #list do
+					local srv = list[i]
+					local playing = tonumber(srv and srv.playing)
+					local id = srv and srv.id
+					if id and id ~= game.JobId and playing and playing >= SERVER_MIN_PLAYERS and playing <= SERVER_MAX_PLAYERS then
+						return id
+					end
+				end
+			end
+			cursor = data.nextPageCursor
+			if not cursor then
+				break
+			end
+		end
+		return nil
+	end
+
+	serverId = pickServer()
+	if serverId then
+		ok = pcall(function()
+			TeleportService:TeleportToPlaceInstance(game.PlaceId, serverId, lp, teleportData)
+		end)
+	else
+		ok = pcall(function()
+			TeleportService:Teleport(game.PlaceId, lp, teleportData)
+		end)
+	end
 	if ok then
 		markPendingTeleport()
 	end
