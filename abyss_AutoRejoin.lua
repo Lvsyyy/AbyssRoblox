@@ -1,10 +1,7 @@
 local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
-local CoreGui = game:GetService("CoreGui")
-local GuiService = game:GetService("GuiService")
 local LogService = game:GetService("LogService")
 local HttpService = game:GetService("HttpService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
 
 local lp = Players.LocalPlayer
 local g = getgenv and getgenv() or _G
@@ -218,51 +215,6 @@ local function tryRejoinOnce()
 	return ok
 end
 
-local function findReconnectButton(root)
-	local btn = root:FindFirstChild("ReconnectButton", true)
-	if btn and btn:IsA("GuiButton") then
-		return btn
-	end
-	return nil
-end
-
-local function pressButton(btn)
-	if not btn then
-		return false
-	end
-	if not VirtualInputManager then
-		return false
-	end
-	return pcall(function()
-		GuiService.SelectedObject = btn
-		VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Return, false, game)
-		VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
-	end)
-end
-
-local promptOverlay = CoreGui:WaitForChild("RobloxPromptGui"):WaitForChild("promptOverlay")
-
-local function hasReconnectButtonVisible()
-	local btn = findReconnectButton(promptOverlay)
-	return btn ~= nil and btn.Visible == true
-end
-
-local lastPromptPress = 0
-local function tryPressReconnect()
-	local now = os.clock()
-	if now - lastPromptPress < 1 then
-		return false
-	end
-	local btn = findReconnectButton(promptOverlay)
-	if btn and pressButton(btn) then
-		lastPromptPress = now
-		return true
-	end
-	return false
-end
-
-local promptVisibleSince = 0
-
 rejoinNow = function()
 	if rejoining then return end
 	rejoining = true
@@ -286,27 +238,12 @@ rejoinNow = function()
 				clearPendingTeleport()
 			end
 		else
-				if hasReconnectButtonVisible() then
-					clearPendingTeleport()
-					if promptVisibleSince == 0 then
-						promptVisibleSince = os.clock()
-					end
-				ensureOnline()
-				tryPressReconnect()
-				if not pendingTeleport then
-					tryRejoinOnce()
-				end
-				stepWait = 1
-			else
-				promptVisibleSince = 0
-				nextPromptTpAt = 0
-				ensureOnline()
-				if not pendingTeleport then
-					tryRejoinOnce()
-					bumpDelay = true
-				end
-				stepWait = 1
+			ensureOnline()
+			if not pendingTeleport then
+				tryRejoinOnce()
+				bumpDelay = true
 			end
+			stepWait = 1
 		end
 		_wait(stepWait)
 		if bumpDelay then
@@ -314,20 +251,6 @@ rejoinNow = function()
 		end
 	end
 end
-
-promptOverlay.ChildAdded:Connect(function()
-	_spawn(rejoinNow)
-end)
-
-_spawn(function()
-	while true do
-		local btn = findReconnectButton(promptOverlay)
-		if btn then
-			pressButton(btn)
-		end
-		_wait(1)
-	end
-end)
 
 TeleportService.TeleportInitFailed:Connect(function(player)
 	if player == lp then
