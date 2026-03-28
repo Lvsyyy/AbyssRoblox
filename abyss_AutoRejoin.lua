@@ -1,6 +1,5 @@
 local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
-local LogService = game:GetService("LogService")
 local HttpService = game:GetService("HttpService")
 
 local lp = Players.LocalPlayer
@@ -70,29 +69,18 @@ do
 end
 
 local function httpGet(url)
-	local funcs = {
-		http and http.request,
-		http_request,
-		request,
-	}
-
-	for i = 1, #funcs do
-		local fn = funcs[i]
-		if type(fn) == "function" then
-			local ok, resp = pcall(fn, {
-				Url = url,
-				Method = "GET",
-			})
-			if ok and type(resp) == "table" and tonumber(resp.StatusCode) == 200 and type(resp.Body) == "string" then
-				return resp.Body
-			end
-		end
+	local ok, resp = pcall(request, {
+		Url = url,
+		Method = "GET",
+	})
+	if ok and type(resp) == "table" and tonumber(resp.StatusCode) == 200 and type(resp.Body) == "string" then
+		return resp.Body
 	end
 
-	local ok, body = pcall(function()
+	local ok2, body = pcall(function()
 		return game:HttpGet(url)
 	end)
-	if ok and type(body) == "string" and body ~= "" then
+	if ok2 and type(body) == "string" and body ~= "" then
 		return body
 	end
 
