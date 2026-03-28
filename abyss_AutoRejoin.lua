@@ -101,8 +101,6 @@ end
 
 local PROBE_URLS = {
 	"https://www.roblox.com/",
-	"https://roblox.com/",
-	("https://games.roblox.com/v1/games?placeIds=%d"):format(game.PlaceId),
 }
 local SERVER_MIN_PLAYERS = 3
 local SERVER_MAX_PLAYERS = 8
