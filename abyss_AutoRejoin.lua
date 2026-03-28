@@ -197,7 +197,7 @@ local function tryRejoinOnce()
 	serverId = pickServer()
 	if serverId then
 		ok = pcall(function()
-			TeleportService:TeleportToPlaceInstance(game.PlaceId, serverId, lp, teleportData)
+			TeleportService:TeleportToPlaceInstance(game.PlaceId, serverId, lp)
 		end)
 	else
 		ok = pcall(function()
