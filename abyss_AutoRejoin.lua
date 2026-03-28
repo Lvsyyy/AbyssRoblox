@@ -99,14 +99,22 @@ local function httpGet(url)
 	return nil
 end
 
-local PROBE_URL = ("https://games.roblox.com/v1/games?placeIds=%d"):format(game.PlaceId)
+local PROBE_URLS = {
+	("https://games.roblox.com/v1/games?placeIds=%d"):format(game.PlaceId),
+	"https://www.roblox.com/",
+}
 local SERVER_MIN_PLAYERS = 3
 local SERVER_MAX_PLAYERS = 8
 local SERVER_URL = ("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100"):format(game.PlaceId)
 
 local function probeOnline()
-	local body = httpGet(PROBE_URL)
-	return type(body) == "string" and body ~= ""
+	for i = 1, #PROBE_URLS do
+		local body = httpGet(PROBE_URLS[i])
+		if type(body) == "string" and body ~= "" then
+			return true
+		end
+	end
+	return false
 end
 
 local probeCount = 0
