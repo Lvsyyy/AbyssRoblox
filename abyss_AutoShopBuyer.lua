@@ -98,7 +98,7 @@ end
 
 local function tryBuyFromMerchant(merchant)
 	if not enabled or selectedCount == 0 then return end
-	if not merchant or merchant.Name == "Bob" then return end
+	if not merchant then return end
 
 	local _, tableRoot = getMerchantRefs(merchant)
 	if not tableRoot then return end
@@ -132,7 +132,7 @@ local function scanStockedMerchants()
 	local merchants = MerchantsRoot:GetChildren()
 	for i = 1, #merchants do
 		local merchant = merchants[i]
-		if merchant:IsA("Model") and merchant.Name ~= "Bob" and isStocked(merchant) then
+		if merchant:IsA("Model") and isStocked(merchant) then
 			task.delay(1, function()
 				tryBuyFromMerchant(merchant)
 			end)
@@ -141,7 +141,7 @@ local function scanStockedMerchants()
 end
 
 local function watchMerchant(merchant)
-	if not merchant:IsA("Model") or merchant.Name == "Bob" then return end
+	if not merchant:IsA("Model") then return end
 
 	local label = getMerchantRefs(merchant)
 	if not label then return end
@@ -170,7 +170,7 @@ local function startWatching()
 
 	local addConn = MerchantsRoot.ChildAdded:Connect(function(child)
 		watchMerchant(child)
-		if enabled and selectedCount > 0 and child:IsA("Model") and child.Name ~= "Bob" and isStocked(child) then
+		if enabled and selectedCount > 0 and child:IsA("Model") and isStocked(child) then
 			task.delay(1, function()
 				tryBuyFromMerchant(child)
 			end)
