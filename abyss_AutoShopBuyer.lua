@@ -92,19 +92,6 @@ local function getStockLabel(slot)
 	return nil
 end
 
-local function getRestockLabel(merchant)
-	if not merchant then return nil end
-	local folder = merchant:FindFirstChild("Folder")
-	local sign = folder and folder:FindFirstChild("Sign")
-	local time = sign and sign:FindFirstChild("Time")
-	local surface = time and time:FindFirstChild("SurfaceGui")
-	local label = surface and surface:FindFirstChild("Label")
-	if label and label:IsA("TextLabel") then
-		return label
-	end
-	return nil
-end
-
 local function shouldBuy(text)
 	if selectedCount == 0 then
 		return false
@@ -143,14 +130,6 @@ local function tryBuy(merchant, slotId, label, stockLabel)
 	local amount = parseStockAmount(stockLabel and stockLabel.Text or "")
 	if amount <= 0 then return end
 
-	local stateKey = merchant.Name .. ":" .. tostring(slotId)
-	local now = os.clock()
-	local last = slotState[stateKey] or 0
-	if now - last < 0.75 then
-		return
-	end
-	slotState[stateKey] = now
-
 	pcall(function()
 		BuyRF:InvokeServer(merchant.Name, slotId, amount)
 	end)
@@ -163,24 +142,14 @@ local function watchSlot(merchant, slot)
 	if not label then return end
 	local stockLabel = getStockLabel(slot)
 
-	local lastText = label.Text
-	local conn = label:GetPropertyChangedSignal("Text"):Connect(function()
-		local newText = label.Text
-		if enabled and selectedCount > 0 and newText ~= lastText then
-			tryBuy(merchant, id, label, stockLabel)
-		end
-		lastText = newText
-	end)
-	connections[#connections + 1] = conn
-
 	if stockLabel then
-		local lastStock = stockLabel.Text
 		local conn2 = stockLabel:GetPropertyChangedSignal("Text"):Connect(function()
 			local newStock = stockLabel.Text
-			if enabled and selectedCount > 0 and newStock ~= lastStock then
-				tryBuy(merchant, id, label, stockLabel)
+			if enabled and selectedCount > 0 then
+				if parseStockAmount(newStock) > 0 then
+					tryBuy(merchant, id, label, stockLabel)
+				end
 			end
-			lastStock = newStock
 		end)
 		connections[#connections + 1] = conn2
 	end
@@ -216,24 +185,6 @@ local function watchMerchant(merchant)
 	for _, slot in ipairs(tableRoot:GetChildren()) do
 		watchSlot(merchant, slot)
 	end
-
-	local conn = tableRoot.ChildAdded:Connect(function(slot)
-		watchSlot(merchant, slot)
-	end)
-	connections[#connections + 1] = conn
-
-	local restockLabel = getRestockLabel(merchant)
-	if restockLabel then
-		local last = restockLabel.Text
-		local conn2 = restockLabel:GetPropertyChangedSignal("Text"):Connect(function()
-			local txt = restockLabel.Text
-			if enabled and selectedCount > 0 and txt == "00:00" and txt ~= last then
-				scanMerchantSlots(merchant)
-			end
-			last = txt
-		end)
-		connections[#connections + 1] = conn2
-	end
 end
 
 local function scanAllMerchants()
@@ -247,15 +198,6 @@ local function startWatching()
 	started = true
 
 	scanAllMerchants()
-
-	local addConn = MerchantsRoot.ChildAdded:Connect(function(child)
-		watchMerchant(child)
-	end)
-	local removeConn = MerchantsRoot.ChildRemoved:Connect(function(child)
-		slotState[child] = nil
-	end)
-	connections[#connections + 1] = addConn
-	connections[#connections + 1] = removeConn
 end
 
 local function setItems(list)
