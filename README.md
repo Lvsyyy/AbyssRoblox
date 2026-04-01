@@ -29,7 +29,7 @@ If you use this inside a public script / hub do not obfuscate it support Open So
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Lvsyyy/AbyssRoblox/main/abyss_GUI.lua"))()
 ```
 
-## Preview
+## Preview (Outdated)
 <img width="960" height="540" alt="{DA3943A9-F18B-4D2F-BD5C-835F9CE1FB14}" src="https://github.com/user-attachments/assets/e13312cd-f0a5-4ca3-9917-751ca9c9ef9c" />
 <img width="960" height="540" alt="{B94F9FEA-E131-4FE2-A5FE-4D1C4E9C104A}" src="https://github.com/user-attachments/assets/fad1e1a5-d906-40c2-88f5-723b60520bf2" />
 <img width="960" height="540" alt="{366D15E7-21F3-409C-B593-D0E2F3FDCCB9}" src="https://github.com/user-attachments/assets/18803b1a-e2b0-466d-8606-cc5a8874655d" />
