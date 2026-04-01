@@ -1,41 +1,64 @@
 local WS = game:GetService("Workspace")
 
-local root = WS:WaitForChild("Game"):WaitForChild("Merchants")
+local function findMerchantsRoot()
+	local gameFolder = WS:FindFirstChild("Game")
+	if gameFolder then
+		local m = gameFolder:FindFirstChild("Merchants")
+		if m then return m end
+	end
+	for _, inst in ipairs(WS:GetDescendants()) do
+		if inst.Name == "Merchants" and inst:IsA("Folder") then
+			return inst
+		end
+	end
+	return nil
+end
+
+local root = findMerchantsRoot() or WS:WaitForChild("Game"):WaitForChild("Merchants")
 local lines = {}
 lines[#lines + 1] = "Abyss Merchant Item Scan"
+lines[#lines + 1] = "Root: " .. root:GetFullName()
+
+local t0 = os.clock()
+while #root:GetChildren() == 0 and os.clock() - t0 < 5 do
+	task.wait(0.2)
+end
+
+lines[#lines + 1] = "Merchant count: " .. tostring(#root:GetChildren())
 
 local function addLine(s)
 	lines[#lines + 1] = s
 end
 
 for _, merchant in ipairs(root:GetChildren()) do
-	if merchant:IsA("Model") then
-		addLine("")
-		addLine(merchant.Name)
-		local folder = merchant:FindFirstChild("Folder")
-		local tableRoot = folder and folder:FindFirstChild("Table")
-		if tableRoot then
-			for _, slot in ipairs(tableRoot:GetChildren()) do
-				local id = tonumber(slot.Name)
-				if id then
-					local item = slot:FindFirstChild("Item")
-					local surface = item and item:FindFirstChild("SurfaceGui")
-					local label = surface and surface:FindFirstChild("Label")
-					if label and label:IsA("TextLabel") then
-						addLine(string.format("  Slot %s | %s | %s", slot.Name, label.Text, label:GetFullName()))
-					else
-						local anyLabel = slot:FindFirstChildWhichIsA("TextLabel", true)
-						if anyLabel then
-							addLine(string.format("  Slot %s | %s | %s", slot.Name, anyLabel.Text, anyLabel:GetFullName()))
-						else
-							addLine(string.format("  Slot %s | (no label)", slot.Name))
-						end
+	addLine("")
+	addLine(merchant.Name .. " | class=" .. merchant.ClassName)
+	local folder = merchant:FindFirstChild("Folder")
+	local tableRoot = folder and folder:FindFirstChild("Table")
+	if tableRoot then
+		local t1 = os.clock()
+		while #tableRoot:GetChildren() == 0 and os.clock() - t1 < 5 do
+			task.wait(0.2)
+		end
+		for _, slot in ipairs(tableRoot:GetChildren()) do
+			local id = tonumber(slot.Name)
+			if id then
+				local item = slot:FindFirstChild("Item")
+				local surface = item and item:FindFirstChild("SurfaceGui")
+				local label = surface and surface:FindFirstChild("Label")
+				if label and label:IsA("TextLabel") then
+					local t2 = os.clock()
+					while label.Text == "" and os.clock() - t2 < 3 do
+						task.wait(0.1)
 					end
+					addLine(string.format("  Slot %s | %s | %s", slot.Name, label.Text, label:GetFullName()))
+				else
+					addLine(string.format("  Slot %s | (no label)", slot.Name))
 				end
 			end
-		else
-			addLine("  (no table)")
 		end
+	else
+		addLine("  (no table)")
 	end
 end
 

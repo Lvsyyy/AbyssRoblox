@@ -78,8 +78,18 @@ local function getItemLabel(slot)
 	if label and label:IsA("TextLabel") then
 		return label
 	end
-	-- fallback: any label under slot
-	return slot:FindFirstChildWhichIsA("TextLabel", true)
+	return nil
+end
+
+local function getStockLabel(slot)
+	if not slot then return nil end
+	local stock = slot:FindFirstChild("Stock")
+	local surface = stock and stock:FindFirstChild("SurfaceGui")
+	local label = surface and surface:FindFirstChild("Label")
+	if label and label:IsA("TextLabel") then
+		return label
+	end
+	return nil
 end
 
 local function shouldBuy(text)
@@ -98,11 +108,27 @@ local function shouldBuy(text)
 	return false
 end
 
-local function tryBuy(merchant, slotId, label)
+local function parseStockAmount(text)
+	if type(text) ~= "string" then
+		return 0
+	end
+	if text:find("Out of Stock", 1, true) then
+		return 0
+	end
+	local num = text:match("(%d+)%s*in%s*Stock")
+	if num then
+		return tonumber(num) or 0
+	end
+	return 0
+end
+
+local function tryBuy(merchant, slotId, label, stockLabel)
 	if not enabled or selectedCount == 0 then return end
 	if not merchant or not slotId then return end
 	local text = label and label.Text or ""
 	if not shouldBuy(text) then return end
+	local amount = parseStockAmount(stockLabel and stockLabel.Text or "")
+	if amount <= 0 then return end
 
 	local stateKey = merchant.Name .. ":" .. tostring(slotId)
 	local now = os.clock()
@@ -113,7 +139,7 @@ local function tryBuy(merchant, slotId, label)
 	slotState[stateKey] = now
 
 	pcall(function()
-		BuyRF:InvokeServer(merchant.Name, slotId, 1)
+		BuyRF:InvokeServer(merchant.Name, slotId, amount)
 	end)
 end
 
@@ -122,19 +148,32 @@ local function watchSlot(merchant, slot)
 	if not id then return end
 	local label = getItemLabel(slot)
 	if not label then return end
+	local stockLabel = getStockLabel(slot)
 
 	local lastText = label.Text
 	local conn = label:GetPropertyChangedSignal("Text"):Connect(function()
 		local newText = label.Text
 		if enabled and selectedCount > 0 and newText ~= lastText then
-			tryBuy(merchant, id, label)
+			tryBuy(merchant, id, label, stockLabel)
 		end
 		lastText = newText
 	end)
 	connections[#connections + 1] = conn
 
+	if stockLabel then
+		local lastStock = stockLabel.Text
+		local conn2 = stockLabel:GetPropertyChangedSignal("Text"):Connect(function()
+			local newStock = stockLabel.Text
+			if enabled and selectedCount > 0 and newStock ~= lastStock then
+				tryBuy(merchant, id, label, stockLabel)
+			end
+			lastStock = newStock
+		end)
+		connections[#connections + 1] = conn2
+	end
+
 	if enabled then
-		tryBuy(merchant, id, label)
+		tryBuy(merchant, id, label, stockLabel)
 	end
 end
 
