@@ -92,6 +92,19 @@ local function getStockLabel(slot)
 	return nil
 end
 
+local function getRestockLabel(merchant)
+	if not merchant then return nil end
+	local folder = merchant:FindFirstChild("Folder")
+	local sign = folder and folder:FindFirstChild("Sign")
+	local time = sign and sign:FindFirstChild("Time")
+	local surface = time and time:FindFirstChild("SurfaceGui")
+	local label = surface and surface:FindFirstChild("Label")
+	if label and label:IsA("TextLabel") then
+		return label
+	end
+	return nil
+end
+
 local function shouldBuy(text)
 	if selectedCount == 0 then
 		return false
@@ -177,8 +190,25 @@ local function watchSlot(merchant, slot)
 	end
 end
 
+local function scanMerchantSlots(merchant)
+	if not (merchant and merchant:IsA("Instance")) then return end
+	local folder = merchant:FindFirstChild("Folder")
+	local tableRoot = folder and folder:FindFirstChild("Table")
+	if not tableRoot then return end
+	for _, slot in ipairs(tableRoot:GetChildren()) do
+		local id = tonumber(slot.Name)
+		if id then
+			local label = getItemLabel(slot)
+			if label then
+				local stockLabel = getStockLabel(slot)
+				tryBuy(merchant, id, label, stockLabel)
+			end
+		end
+	end
+end
+
 local function watchMerchant(merchant)
-	if not (merchant and merchant:IsA("Model")) then return end
+	if not (merchant and merchant:IsA("Instance")) then return end
 	local folder = merchant:FindFirstChild("Folder")
 	local tableRoot = folder and folder:FindFirstChild("Table")
 	if not tableRoot then return end
@@ -191,6 +221,19 @@ local function watchMerchant(merchant)
 		watchSlot(merchant, slot)
 	end)
 	connections[#connections + 1] = conn
+
+	local restockLabel = getRestockLabel(merchant)
+	if restockLabel then
+		local last = restockLabel.Text
+		local conn2 = restockLabel:GetPropertyChangedSignal("Text"):Connect(function()
+			local txt = restockLabel.Text
+			if enabled and selectedCount > 0 and txt == "00:00" and txt ~= last then
+				scanMerchantSlots(merchant)
+			end
+			last = txt
+		end)
+		connections[#connections + 1] = conn2
+	end
 end
 
 local function scanAllMerchants()
@@ -289,6 +332,9 @@ local function setEnabled(v)
 	startWatching()
 	if enabled then
 		scanAllMerchants()
+		for _, merchant in ipairs(MerchantsRoot:GetChildren()) do
+			scanMerchantSlots(merchant)
+		end
 	end
 end
 

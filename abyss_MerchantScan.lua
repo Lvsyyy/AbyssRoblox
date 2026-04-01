@@ -34,6 +34,13 @@ for _, merchant in ipairs(root:GetChildren()) do
 	addLine("")
 	addLine(merchant.Name .. " | class=" .. merchant.ClassName)
 	local folder = merchant:FindFirstChild("Folder")
+	local sign = folder and folder:FindFirstChild("Sign")
+	local time = sign and sign:FindFirstChild("Time")
+	local timeSurface = time and time:FindFirstChild("SurfaceGui")
+	local timeLabel = timeSurface and timeSurface:FindFirstChild("Label")
+	if timeLabel and timeLabel:IsA("TextLabel") then
+		addLine("  Restock | " .. timeLabel.Text .. " | " .. timeLabel:GetFullName())
+	end
 	local tableRoot = folder and folder:FindFirstChild("Table")
 	if tableRoot then
 		local t1 = os.clock()
@@ -54,6 +61,12 @@ for _, merchant in ipairs(root:GetChildren()) do
 					addLine(string.format("  Slot %s | %s | %s", slot.Name, label.Text, label:GetFullName()))
 				else
 					addLine(string.format("  Slot %s | (no label)", slot.Name))
+				end
+				local stock = slot:FindFirstChild("Stock")
+				local stockSurface = stock and stock:FindFirstChild("SurfaceGui")
+				local stockLabel = stockSurface and stockSurface:FindFirstChild("Label")
+				if stockLabel and stockLabel:IsA("TextLabel") then
+					addLine(string.format("    Stock | %s | %s", stockLabel.Text, stockLabel:GetFullName()))
 				end
 			end
 		end
