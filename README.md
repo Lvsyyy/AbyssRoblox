@@ -7,22 +7,19 @@ If you use this inside a public script / hub do not obfuscate it support Open So
 ## Files
 | File | Description |
 | --- | --- |
-| `abyss_Sell.lua` | Sells all inventory after equipping loadout 4. |
-| `abyss_PortableStash.lua` | Deposits and withdraws fish with weight-based ordering. |
-| `abyss_ArtifactSets.lua` | Equips weight, damage, or speed artifact loadouts. |
-| `abyss_AntiAfk.lua` | Sends a periodic key press to prevent AFK. |
-| `abyss_ArtifactScan.lua` | Returns a sorted list of artifact names from the library. |
-| `abyss_AutoArtifactDelete.lua` | Enables or disables auto-delete for a selected artifact. |
-| `abyss_AutoFishDelete.lua` | Manages fish name auto-delete with toggle and cache watchers. |
-| `abyss_AutoShopBuyer.lua` | Auto-buys selected merchant items when merchants restock. |
-| `abyss_ArtifactUpdate.lua` | Updates each artifact set with the best matching stats. |
-| `abyss_ArtifactDelete.lua` | Deletes non-protected artifacts not in the top 3 of each category. |
-| `abyss_AutoGeode.lua` | Opens Coconut geodes up to 99 based on backpack/hotbar count; falls back to Rooted. |
-| `abyss_GeodeOnly.lua` | Cancels non-reward minigame progress updates for geode-only flow. |
-| `abyss_AutoDaily.lua` | Auto-claims daily rewards when available. |
-| `abyss_Settings.lua` | Saves/loads GUI settings JSON with legacy fallback parsing. |
-| `abyss_AutoRejoin.lua` | Rejoins after kick/error prompt and re-executes the configured script on teleport. |
+| `abyss_Framework.lua` | Shared helpers (list UI, inventory pipeline, sell-all, anti-AFK, etc). |
 | `abyss_GUI.lua` | Tabbed GUI that loads and calls the other scripts via loadstring. |
+| `abyss_ArtifactManager.lua` | Artifact scan/update/delete logic used by the GUI. |
+| `abyss_AutoDaily.lua` | Auto-claims daily rewards using data timestamps (no polling). |
+| `abyss_AutoFishDelete.lua` | Deletes fish by exact name match (no UI scanning). |
+| `abyss_AutoGeode.lua` | Opens selected geodes based on backpack/hotbar counts. |
+| `abyss_GeodeOnly.lua` | Cancels non-reward minigame progress updates for geode-only flow. |
+| `abyss_AutoRoe.lua` | Auto-collects roe when pond reaches threshold. |
+| `abyss_AutoShopBuyer.lua` | Auto-buys selected merchant items when stock changes. |
+| `abyss_AutoRejoin.lua` | Rejoins after kick/error prompt and re-executes the configured script on teleport. |
+| `abyss_FishPond.lua` | Pond deposit/withdraw logic using value calculator. |
+| `abyss_PortableStash.lua` | Deposits and withdraws fish with weight-based ordering. |
+| `abyss_ValueCalculator.lua` | Scans base values/mutations and computes fish value. |
 
 ## Run This
 ```lua

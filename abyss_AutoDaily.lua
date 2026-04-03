@@ -1,120 +1,147 @@
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
-local lp = Players.LocalPlayer
-local pg = lp:WaitForChild("PlayerGui")
 
 local Common = ReplicatedStorage:WaitForChild("common")
 local Knit = require(Common:WaitForChild("packages"):WaitForChild("Knit"))
 local DailyClaimRF = Common
-	:WaitForChild("packages")
-	:WaitForChild("Knit")
-	:WaitForChild("Services")
-	:WaitForChild("DailyRewardService")
-	:WaitForChild("RF")
-	:WaitForChild("Claim")
-
-local DAILY_READY_TEXT = "Next reward in: <font color='#ffffff'><b>00:00</b></font>"
+    :WaitForChild("packages")
+    :WaitForChild("Knit")
+    :WaitForChild("Services")
+    :WaitForChild("DailyRewardService")
+    :WaitForChild("RF")
+    :WaitForChild("Claim")
 
 local enabled = false
-local labelConn
 local timeConn
-local loopId = 0
+local replicaConn
 local lastClaimAt = 0
+local scheduleToken = 0
 local dataController
+local replica
+local timeReady = false
 
-local function getDailyRewardsData()
-	if not dataController then
-		pcall(function()
-			dataController = Knit.GetController("DataController")
-		end)
-	end
-	if not dataController then return nil end
+local scheduleNext
+local tryClaim
 
-	local ok, replica = pcall(function()
-		return dataController:GetReplica()
-	end)
-	if not ok or not replica or not replica.Data then
-		return nil
-	end
-	return replica.Data.daily_rewards
+local function getReplica()
+    if not dataController then
+        pcall(function()
+            dataController = Knit.GetController("DataController")
+        end)
+    end
+    if not dataController then return nil end
+    if not replica then
+        local ok, res = pcall(function()
+            return dataController:GetReplica()
+        end)
+        if ok then
+            replica = res
+        end
+        if replica and type(replica.ListenToChange) == "function" and not replicaConn then
+            replicaConn = replica:ListenToChange({ "daily_rewards" }, function()
+                if enabled and scheduleNext then
+                    scheduleNext()
+                end
+            end)
+        end
+    end
+    return replica
 end
 
-local function isDailyReadyByData()
-	local daily = getDailyRewardsData()
-	if type(daily) ~= "table" then return nil end
-	if type(daily.last_claim) ~= "number" then return nil end
-
-	local timeNow = workspace:GetAttribute("TimeNow")
-	if type(timeNow) ~= "number" then return nil end
-
-	return (daily.last_claim + 86400 - timeNow) <= 0
+local function getTimeLeft()
+    local rep = getReplica()
+    if not rep or not rep.Data then return nil end
+    local daily = rep.Data.daily_rewards
+    if type(daily) ~= "table" then return nil end
+    if type(daily.last_claim) ~= "number" then return nil end
+    local timeNow = workspace:GetAttribute("TimeNow")
+    if type(timeNow) ~= "number" then return nil end
+    timeReady = true
+    return daily.last_claim + 86400 - timeNow
 end
 
-local function getDailyLabel()
-	local main = pg:FindFirstChild("Main")
-	if not main then return nil end
-	local center = main:FindFirstChild("Center")
-	if not center then return nil end
-	local daily = center:FindFirstChild("DailyReward")
-	if not daily then return nil end
-	local nextReward = daily:FindFirstChild("NextReward")
-	if not nextReward then return nil end
-	local label = nextReward:FindFirstChild("Label")
-	if label and label:IsA("TextLabel") then
-		return label
-	end
-	return nil
+local function attachTimeProbe()
+    if timeConn then return end
+    timeConn = workspace:GetAttributeChangedSignal("TimeNow"):Connect(function()
+        if not enabled then return end
+        if not timeReady then
+            local left = getTimeLeft()
+            if type(left) == "number" then
+                if timeConn then
+                    timeConn:Disconnect()
+                    timeConn = nil
+                end
+                scheduleNext()
+            end
+        end
+    end)
 end
 
-local function tryClaim()
-	if not enabled then return end
-	local readyByData = isDailyReadyByData()
-	local label = getDailyLabel()
-	local readyByLabel = (label and label.Text == DAILY_READY_TEXT) and true or false
-	if (readyByData == true or readyByLabel) and os.clock() - lastClaimAt > 3 then
-		lastClaimAt = os.clock()
-		pcall(function()
-			DailyClaimRF:InvokeServer()
-		end)
-	end
+scheduleNext = function()
+    scheduleToken += 1
+    local myToken = scheduleToken
+    local timeLeft = getTimeLeft()
+    if type(timeLeft) ~= "number" then
+        timeReady = false
+        attachTimeProbe()
+        return
+    end
+    if timeLeft <= 0 then
+        tryClaim()
+        return
+    end
+    task.delay(timeLeft, function()
+        if enabled and scheduleToken == myToken then
+            tryClaim()
+        end
+    end)
+end
+
+tryClaim = function()
+    if not enabled then return end
+    local timeLeft = getTimeLeft()
+    local readyByData = (type(timeLeft) == "number") and (timeLeft <= 0) or nil
+    if readyByData and os.clock() - lastClaimAt > 3 then
+        lastClaimAt = os.clock()
+        pcall(function()
+            DailyClaimRF:InvokeServer()
+        end)
+        task.delay(2, function()
+            if enabled then
+                scheduleNext()
+            end
+        end)
+        return
+    end
+    if type(timeLeft) == "number" and timeLeft > 0 then
+        scheduleNext()
+    end
 end
 
 local function setEnabled(v)
-	enabled = v == true
+    enabled = v == true
 
-	if labelConn then
-		labelConn:Disconnect()
-		labelConn = nil
-	end
-	if timeConn then
-		timeConn:Disconnect()
-		timeConn = nil
-	end
+    if timeConn then
+        timeConn:Disconnect()
+        timeConn = nil
+    end
+    if replicaConn then
+        replicaConn:Disconnect()
+        replicaConn = nil
+    end
 
-	loopId += 1
-	if enabled then
-		local label = getDailyLabel()
-		if label then
-			labelConn = label:GetPropertyChangedSignal("Text"):Connect(tryClaim)
-		end
-		timeConn = workspace:GetAttributeChangedSignal("TimeNow"):Connect(tryClaim)
-		local thisLoop = loopId
-		task.spawn(function()
-			while enabled and loopId == thisLoop do
-				tryClaim()
-				task.wait(1)
-			end
-		end)
-		tryClaim()
-	end
+    if enabled then
+        tryClaim()
+        scheduleNext()
+    else
+        scheduleToken += 1
+    end
 end
 
 local function getEnabled()
-	return enabled
+    return enabled
 end
 
 return {
-	setEnabled = setEnabled,
-	getEnabled = getEnabled,
+    setEnabled = setEnabled,
+    getEnabled = getEnabled,
 }
