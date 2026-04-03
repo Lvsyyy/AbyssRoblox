@@ -26,19 +26,8 @@ local keyCount = 0
 local backpackFishWeights, backpackFishNames = {}, {} -- [id]=weight/name
 local hotbarFishWeights, hotbarFishNames = {}, {}     -- [id]=weight/name
 
-local function stripTags(text)
-	if type(text) ~= "string" then
-		return ""
-	end
-	local cleaned = text:gsub("<[^>]->", "")
-	cleaned = cleaned:gsub("^%s+", ""):gsub("%s+$", "")
-	cleaned = cleaned:gsub("%s+", " ")
-	return cleaned
-end
-
 local function normalizeName(s)
-	local cleaned = stripTags(s)
-	return string.lower(cleaned)
+	return string.lower(s or "")
 end
 
 local function rebuildKeyList()
@@ -71,7 +60,7 @@ local function addBackpackFish(inst)
 	local id = inst:GetAttribute("id")
 	if not isFishId(id) then return end
 	backpackFishWeights[id] = inst:GetAttribute("weight") or 0
-	backpackFishNames[id] = inst:GetAttribute("fullname") or inst:GetAttribute("name")
+	backpackFishNames[id] = inst:GetAttribute("name")
 end
 
 local function removeBackpackFish(inst)
@@ -101,7 +90,7 @@ local function rebuildHotbarFishCache()
 			local id = slot:GetAttribute("id")
 			if isFishId(id) then
 				hotbarFishWeights[id] = slot:GetAttribute("weight") or 0
-				hotbarFishNames[id] = slot:GetAttribute("fullname") or slot:GetAttribute("name")
+				hotbarFishNames[id] = slot:GetAttribute("name")
 			end
 		end
 	end
@@ -169,7 +158,7 @@ local function init()
 
 		if enabled and keyCount > 0 and child.ClassName == "Frame" and tonumber(child.Name) and child:GetAttribute("class") == "fish" then
 			local id = child:GetAttribute("id")
-			local name = child:GetAttribute("fullname") or child:GetAttribute("name")
+			local name = child:GetAttribute("name")
 			if isFishId(id) and isTargetDeleteName(name) then
 				DeleteFishRF:InvokeServer(id)
 			end
