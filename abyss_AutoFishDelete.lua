@@ -23,8 +23,6 @@ local nameList = {}
 local keyList = {}
 local keyCount = 0
 
-local backpackFishIds, backpackFishNames = {}, {} -- [id]=name
-local hotbarFishIds, hotbarFishNames = {}, {}     -- [id]=name
 
 local function normalizeName(s)
 	return string.lower(s or "")
@@ -55,44 +53,12 @@ local function isTargetDeleteName(name)
 	return false
 end
 
-local function addBackpackFish(inst)
-	if inst.ClassName ~= "Frame" then return end
+local function deleteIfMatch(inst)
+	if not (inst and inst.ClassName == "Frame") then return end
 	local id = inst:GetAttribute("id")
-	if not isFishId(id) then return end
-	backpackFishIds[id] = true
-	backpackFishNames[id] = inst:GetAttribute("name")
-end
-
-local function removeBackpackFish(inst)
-	if inst.ClassName ~= "Frame" then return end
-	local id = inst:GetAttribute("id")
-	if not isFishId(id) then return end
-	backpackFishIds[id], backpackFishNames[id] = nil, nil
-end
-
-local function rebuildBackpackFishCache()
-	table.clear(backpackFishIds)
-	table.clear(backpackFishNames)
-	local kids = FishList:GetChildren()
-	for i = 1, #kids do
-		addBackpackFish(kids[i])
-	end
-end
-
-local function rebuildHotbarFishCache()
-	table.clear(hotbarFishIds)
-	table.clear(hotbarFishNames)
-
-	local kids = hotbarRoot:GetChildren()
-	for i = 1, #kids do
-		local slot = kids[i]
-		if slot.ClassName == "Frame" and tonumber(slot.Name) then
-			local id = slot:GetAttribute("id")
-			if isFishId(id) then
-				hotbarFishIds[id] = true
-				hotbarFishNames[id] = slot:GetAttribute("name")
-			end
-		end
+	local name = inst:GetAttribute("name")
+	if isFishId(id) and isTargetDeleteName(name) then
+		DeleteFishRF:InvokeServer(id)
 	end
 end
 
@@ -100,16 +66,12 @@ local function deleteAllTargetFish()
 	if keyCount == 0 then
 		return
 	end
-
-	for id, name in pairs(backpackFishNames) do
-		if isTargetDeleteName(name) then
-			DeleteFishRF:InvokeServer(id)
-		end
+	for _, inst in ipairs(FishList:GetChildren()) do
+		deleteIfMatch(inst)
 	end
-
-	for id, name in pairs(hotbarFishNames) do
-		if hotbarFishIds[id] and not backpackFishIds[id] and isTargetDeleteName(name) then
-			DeleteFishRF:InvokeServer(id)
+	for _, slot in ipairs(hotbarRoot:GetChildren()) do
+		if slot.ClassName == "Frame" and tonumber(slot.Name) then
+			deleteIfMatch(slot)
 		end
 	end
 end
@@ -123,26 +85,21 @@ local function init()
 	FishList = backpackGui.List.CanvasGroup.ScrollingFrame
 	hotbarRoot = backpackGui.Hotbar
 
-	rebuildBackpackFishCache()
-	rebuildHotbarFishCache()
-
 	FishList.ChildAdded:Connect(function(child)
-		addBackpackFish(child)
-		if enabled and keyCount > 0 and child.ClassName == "Frame" then
-			local id = child:GetAttribute("id")
-			local name = child:GetAttribute("name")
-			if isFishId(id) and isTargetDeleteName(name) then
-				DeleteFishRF:InvokeServer(id)
-			end
+		if enabled and keyCount > 0 then
+			deleteIfMatch(child)
 		end
 	end)
 
-	FishList.ChildRemoved:Connect(removeBackpackFish)
-
 	local function hookHotbarSlot(slot)
 		if slot.ClassName ~= "Frame" or not tonumber(slot.Name) then return end
-		slot:GetAttributeChangedSignal("id"):Connect(rebuildHotbarFishCache)
-		slot:GetAttributeChangedSignal("name"):Connect(rebuildHotbarFishCache)
+		local function onChange()
+			if enabled and keyCount > 0 then
+				deleteIfMatch(slot)
+			end
+		end
+		slot:GetAttributeChangedSignal("id"):Connect(onChange)
+		slot:GetAttributeChangedSignal("name"):Connect(onChange)
 	end
 
 	do
@@ -152,18 +109,10 @@ local function init()
 
 	hotbarRoot.ChildAdded:Connect(function(child)
 		hookHotbarSlot(child)
-		rebuildHotbarFishCache()
-
-		if enabled and keyCount > 0 and child.ClassName == "Frame" and tonumber(child.Name) then
-			local id = child:GetAttribute("id")
-			local name = child:GetAttribute("name")
-			if isFishId(id) and isTargetDeleteName(name) then
-				DeleteFishRF:InvokeServer(id)
-			end
+		if enabled and keyCount > 0 then
+			deleteIfMatch(child)
 		end
 	end)
-
-	hotbarRoot.ChildRemoved:Connect(rebuildHotbarFishCache)
 end
 
 local function setEnabled(v)
