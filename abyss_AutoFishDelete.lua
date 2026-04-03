@@ -48,7 +48,7 @@ local function isTargetDeleteName(name)
 	end
 	local n = normalizeName(name)
 	for i = 1, keyCount do
-		if n:find(keyList[i], 1, true) then
+		if n == keyList[i] then
 			return true
 		end
 	end
