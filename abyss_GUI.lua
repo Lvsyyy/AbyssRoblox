@@ -15,6 +15,22 @@ end
 local MODULE_SRC = {}
 local MODULE_LOADING = {}
 local LOADED_MODULES = {}
+local CACHE_BUST = tostring(math.floor((os.clock() * 1000) % 1000000000))
+
+local function fetchModuleSource(name, cacheBust)
+    local url = BASE .. name .. ".lua"
+    if cacheBust then
+        url = url .. "?cb=" .. CACHE_BUST
+    end
+    local ok, fetched = pcall(function()
+        return game:HttpGet(url)
+    end)
+    if ok and type(fetched) == "string" and fetched ~= "" then
+        MODULE_SRC[name] = fetched
+        return fetched
+    end
+    return nil
+end
 
 local function loadModule(name)
     if type(MODULE_SRC) ~= "table" then
@@ -47,17 +63,18 @@ local function loadModule(name)
     end
 
     if not src then
-        local ok, fetched = pcall(function()
-            return game:HttpGet(BASE .. name .. ".lua")
-        end)
-        if not ok or type(fetched) ~= "string" or fetched == "" then
+        src = fetchModuleSource(name, false)
+        if not src then
             error("Failed to load module: " .. tostring(name))
         end
-        src = fetched
-        MODULE_SRC[name] = src
     end
 
     local mod, err = loadstring(src)
+    if not mod then
+        -- Cache-bust and retry once in case the CDN served stale content.
+        src = fetchModuleSource(name, true) or src
+        mod, err = loadstring(src)
+    end
     if not mod then
         error("Failed to compile module: " .. tostring(name) .. " (" .. tostring(err) .. ")")
     end
@@ -75,12 +92,7 @@ local function prefetchModules(list)
         if not MODULE_SRC[name] and not MODULE_LOADING[name] then
             MODULE_LOADING[name] = true
             _spawn(function()
-                local ok, fetched = pcall(function()
-                    return game:HttpGet(BASE .. name .. ".lua")
-                end)
-                if ok and type(fetched) == "string" and fetched ~= "" then
-                    MODULE_SRC[name] = fetched
-                end
+                fetchModuleSource(name, true)
                 MODULE_LOADING[name] = false
             end)
         end
