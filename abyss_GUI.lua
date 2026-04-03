@@ -978,6 +978,7 @@ do
         layout = lo,
         makeRow = makeSelectableRow,
         getItems = shopBuyer.getAvailableItems,
+        isEnabled = shopBuyer.hasItem,
         keyFn = string.lower,
         colorFor = Framework.makeEnabledColorFn(
             Color3.fromRGB(58, 120, 66),
@@ -987,7 +988,9 @@ do
         onSelect = function() end,
     })
 
-    local refreshList = Framework.makeListRefresh(shopListCtrl, shopBuyer.getItems, true)
+    local refreshList = function()
+        shopListCtrl.refresh()
+    end
     refreshShopList = refreshList
 
     setShopToggleVisual = bindToggle(

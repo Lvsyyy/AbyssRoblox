@@ -238,6 +238,14 @@ local function addItem(name)
     return true
 end
 
+local function hasItem(name)
+    if type(name) ~= "string" or name == "" then
+        return false
+    end
+    local key = normalize(name)
+    return key ~= "" and itemsSet[key] == true
+end
+
 local function removeItem(name)
     if type(name) ~= "string" or name == "" then
         return false
@@ -289,6 +297,7 @@ buildAvailableItems()
 return {
     setItems = setItems,
     addItem = addItem,
+    hasItem = hasItem,
     removeItem = removeItem,
     getItems = getItems,
     getAvailableItems = getAvailableItems,
