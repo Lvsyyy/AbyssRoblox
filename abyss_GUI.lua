@@ -269,8 +269,10 @@ GeodeAssets = GeodeAssets and GeodeAssets:FindFirstChild("geodes") or Common:Wai
 
 local function bindToggle(button, getState, setState, onText, offText)
     Framework.bindToggle(button, getState, setState, onText, offText, BTN_GREEN, BTN_RED)
-    return function(on)
-        setState(on)
+    return function(on, skipState)
+        if not skipState then
+            setState(on)
+        end
         Framework.setToggleVisual(button, on, onText, offText, BTN_GREEN, BTN_RED)
     end
 end
@@ -311,7 +313,7 @@ local function setRoeAuto(on)
     roe.setEnabled(on == true)
     roeAutoOn = roe.getEnabled()
     if setRoeToggleVisual then
-        setRoeToggleVisual(roeAutoOn)
+        setRoeToggleVisual(roeAutoOn, true)
     end
 end
 
@@ -319,7 +321,7 @@ local function setAutoDaily(on)
     autoDaily.setEnabled(on == true)
     autoDailyOn = autoDaily.getEnabled()
     if setAutoDailyToggleVisual then
-        setAutoDailyToggleVisual(autoDailyOn)
+        setAutoDailyToggleVisual(autoDailyOn, true)
     end
 end
 
@@ -328,7 +330,7 @@ local function setGeodeOnly(on)
     geodeOnly.setEnabled(geodeOnlyOn)
     geodeOnlyOn = geodeOnly.getEnabled()
     if setGeodeOnlyToggleVisual then
-        setGeodeOnlyToggleVisual(geodeOnlyOn)
+        setGeodeOnlyToggleVisual(geodeOnlyOn, true)
     end
 end
 
