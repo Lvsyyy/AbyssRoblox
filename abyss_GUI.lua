@@ -148,6 +148,14 @@ if fishPond and fishPond.setValueCalculator then
     fishPond.setValueCalculator(valueCalc)
 end
 
+if valueCalc and valueCalc.getTables then
+    _spawn(function()
+        pcall(function()
+            valueCalc.getTables()
+        end)
+    end)
+end
+
 local valueHooked = setmetatable({}, { __mode = "k" })
 
 local function getValueLabel(frame)
