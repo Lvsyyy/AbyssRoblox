@@ -12,8 +12,16 @@ local _spawn = (task and task.spawn) or spawn
 local _defer = (task and task.defer) or function(fn, ...)
     _spawn(fn, ...)
 end
-local MODULE_SRC = {}
-local MODULE_LOADING = {}
+local g = (getgenv and getgenv()) or _G
+local sharedCache = g and g.__abyss_module_cache
+if not sharedCache then
+    sharedCache = { src = {}, loading = {} }
+    if g then
+        g.__abyss_module_cache = sharedCache
+    end
+end
+local MODULE_SRC = sharedCache.src
+local MODULE_LOADING = sharedCache.loading
 local LOADED_MODULES = {}
 local CACHE_BUST = tostring(math.floor((os.clock() * 1000) % 1000000000))
 
