@@ -13,11 +13,13 @@ local _defer = (task and task.defer) or function(fn, ...)
     _spawn(fn, ...)
 end
 local g = (getgenv and getgenv()) or _G
+local MODULE_CACHE_VERSION = "2026-04-03-1"
 local sharedCache = g and g.__abyss_module_cache
-if not sharedCache then
+if not sharedCache or (g and g.__abyss_module_cache_version ~= MODULE_CACHE_VERSION) then
     sharedCache = { src = {}, loading = {} }
     if g then
         g.__abyss_module_cache = sharedCache
+        g.__abyss_module_cache_version = MODULE_CACHE_VERSION
     end
 end
 local MODULE_SRC = sharedCache.src
