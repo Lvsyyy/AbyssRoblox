@@ -774,7 +774,7 @@ do
         "Geode only: ON",
         "Geode only: OFF"
     )
-    setGeodeOnlyToggleVisual(geodeOnlyOn)
+    setGeodeOnlyToggleVisual(geodeOnlyOn, true)
 
     makeButton(row4, "Save Settings", BTN_PURPLE).MouseButton1Click:Connect(function()
         local payload = {
@@ -854,7 +854,7 @@ do
         "Auto Daily: ON",
         "Auto Daily: OFF"
     )
-    setAutoDailyToggleVisual(autoDailyOn)
+    setAutoDailyToggleVisual(autoDailyOn, true)
 
     local row2 = makeRow(t, 2, 34)
     local openGeodeBtn = makeButton(row2, "Open Geode: OFF", BTN_RED)
@@ -875,7 +875,7 @@ do
         "Auto Roe: ON",
         "Auto Roe: OFF"
     )
-    setRoeToggleVisual(roeAutoOn)
+    setRoeToggleVisual(roeAutoOn, true)
 
     local row3 = makeRow(t, 2, 34)
     local addBtn = makeButton(row3, "Add", BTN_GREEN)
@@ -1015,16 +1015,16 @@ local function updateSettingsUI()
         setGeodeToggleVisual(geodeOpener.getEnabled())
     end
     if setGeodeOnlyToggleVisual then
-        setGeodeOnlyToggleVisual(geodeOnlyOn)
+        setGeodeOnlyToggleVisual(geodeOnlyOn, true)
     end
     if refreshGeodeList then
         refreshGeodeList()
     end
     if setAutoDailyToggleVisual then
-        setAutoDailyToggleVisual(autoDailyOn)
+        setAutoDailyToggleVisual(autoDailyOn, true)
     end
     if setRoeToggleVisual then
-        setRoeToggleVisual(roeAutoOn)
+        setRoeToggleVisual(roeAutoOn, true)
     end
 end
 
