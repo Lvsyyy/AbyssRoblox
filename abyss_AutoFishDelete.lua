@@ -10,10 +10,13 @@ local nameSet = {}
 local nameList = {}
 local keyList = {}
 local keyCount = 0
-
-
-local function normalizeName(s)
+local g = (getgenv and getgenv()) or _G
+local Framework = g and g.__abyss_framework
+local normalizeName = (Framework and Framework.normalize) or function(s)
     return string.lower(s or "")
+end
+local isFishId = (Framework and Framework.isHexId32) or function(v)
+    return type(v) == "string" and #v == 32 and v:match("^[a-f0-9]+$") ~= nil
 end
 
 local function rebuildKeyList()
@@ -22,10 +25,6 @@ local function rebuildKeyList()
         keyList[#keyList + 1] = key
     end
     keyCount = #keyList
-end
-
-local function isFishId(v)
-    return type(v) == "string" and #v == 32 and v:match("^[a-f0-9]+$") ~= nil
 end
 
 local function isTargetDeleteName(name)

@@ -14,6 +14,12 @@ local artifactFolder = WS:WaitForChild("Game"):WaitForChild("ArtifactAnim"):Wait
 local nameSet = { ["coconut"] = true }
 local nameList = { "Coconut" }
 
+local g = (getgenv and getgenv()) or _G
+local Framework = g and g.__abyss_framework
+local normalizeName = (Framework and Framework.normalize) or function(s)
+    return string.lower(tostring(s or ""))
+end
+
 local function toNum(v)
     if type(v) == "number" then
         return v
@@ -36,10 +42,6 @@ local function parseAmountText(s)
         return n
     end
     return nil
-end
-
-local function normalizeName(s)
-    return string.lower(tostring(s or ""))
 end
 
 local function matchesGeodeName(value, key)

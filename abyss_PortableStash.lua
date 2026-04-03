@@ -26,7 +26,9 @@ local inventoryList = {}
 
 local initialized = false
 
-local function isFishId(v)
+local g = (getgenv and getgenv()) or _G
+local Framework = g and g.__abyss_framework
+local isFishId = (Framework and Framework.isHexId32) or function(v)
     return type(v) == "string" and #v == 32 and v:match("^[a-f0-9]+$") ~= nil
 end
 

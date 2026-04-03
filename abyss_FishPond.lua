@@ -11,7 +11,9 @@ local WithdrawRF = PondRF.Withdraw
 local inventoryList = {}
 local valueCalc = nil
 
-local function isId(str)
+local g = (getgenv and getgenv()) or _G
+local Framework = g and g.__abyss_framework
+local isId = (Framework and Framework.isHexId32) or function(str)
     return type(str) == "string" and #str == 32 and str:match("^[a-f0-9]+$") ~= nil
 end
 

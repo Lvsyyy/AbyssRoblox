@@ -126,6 +126,8 @@ local function waitForConnectivity()
     end
 end
 
+local connReady = false
+
 local function ensureOnline()
     if not connReady then
         waitForConnectivity()
@@ -141,7 +143,6 @@ local pendingTeleportAt = 0
 local PENDING_TIMEOUT = 8
 local nextPromptTpAt = 0
 local rejoinNow
-local connReady = false
 
 local function markPendingTeleport()
     pendingTeleport = true

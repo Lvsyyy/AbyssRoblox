@@ -4,6 +4,10 @@ function Framework.normalize(s)
     return string.lower(tostring(s or "")):gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
 end
 
+function Framework.isHexId32(v)
+    return type(v) == "string" and #v == 32 and v:match("^[a-f0-9]+$") ~= nil
+end
+
 function Framework.safeInvoke(rf, ...)
     if rf then
         pcall(function()
@@ -632,6 +636,13 @@ function Framework.createAntiAfk()
         start = start,
         stop = stop,
     }
+end
+
+do
+    local g = (getgenv and getgenv()) or _G
+    if g then
+        g.__abyss_framework = Framework
+    end
 end
 
 return Framework

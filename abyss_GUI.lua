@@ -128,7 +128,7 @@ if fishPond and fishPond.setValueCalculator then
     fishPond.setValueCalculator(valueCalc)
 end
 
-local valueHooked = {}
+local valueHooked = setmetatable({}, { __mode = "k" })
 
 local function getValueLabel(frame)
     if not frame then return nil end
@@ -190,6 +190,11 @@ local function hookValueFrame(frame)
     frame:GetAttributeChangedSignal("name"):Connect(apply)
     frame:GetAttributeChangedSignal("class"):Connect(apply)
     frame:GetAttributeChangedSignal("stars"):Connect(apply)
+    frame.AncestryChanged:Connect(function(_, parent)
+        if not parent then
+            valueHooked[frame] = nil
+        end
+    end)
     label:GetPropertyChangedSignal("Text"):Connect(function()
         if updating then return end
         label:SetAttribute("AbyssBaseText", nil)

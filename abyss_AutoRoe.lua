@@ -14,6 +14,7 @@ local EquipArtifactsLoadoutRF = KnitServices:WaitForChild("InventoryService"):Wa
 
 local enabled = false
 local nonce = 0
+local labelConn = nil
 
 local function collect()
     pcall(function()
@@ -59,6 +60,10 @@ local function setEnabled(v)
     enabled = v == true
     nonce += 1
     local myNonce = nonce
+    if labelConn then
+        labelConn:Disconnect()
+        labelConn = nil
+    end
     if not enabled then
         return
     end
@@ -86,7 +91,7 @@ local function setEnabled(v)
             end
         end
 
-        label:GetPropertyChangedSignal("Text"):Connect(tryCollect)
+        labelConn = label:GetPropertyChangedSignal("Text"):Connect(tryCollect)
         tryCollect()
     end)
 end

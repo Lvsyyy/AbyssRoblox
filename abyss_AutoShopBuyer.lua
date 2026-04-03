@@ -19,7 +19,9 @@ local availableItems = {}
 local connections = {}
 local slotState = {}
 
-local function normalize(s)
+local g = (getgenv and getgenv()) or _G
+local Framework = g and g.__abyss_framework
+local normalize = (Framework and Framework.normalize) or function(s)
     if type(s) ~= "string" then
         return ""
     end
@@ -159,7 +161,7 @@ local function watchSlot(merchant, slot)
     end
 end
 
-local function scanMerchantSlots(merchant)
+local function tryBuyMerchantSlots(merchant)
     if not (merchant and merchant:IsA("Instance")) then return end
     local folder = merchant:FindFirstChild("Folder")
     local tableRoot = folder and folder:FindFirstChild("Table")
@@ -193,11 +195,17 @@ local function scanAllMerchants()
     end
 end
 
-local function startWatching()
-    if started then return end
-    started = true
+local function tryBuyAllMerchants()
+    for _, merchant in ipairs(MerchantsRoot:GetChildren()) do
+        tryBuyMerchantSlots(merchant)
+    end
+end
 
+local function startWatching()
+    if started then return false end
+    started = true
     scanAllMerchants()
+    return true
 end
 
 local function setItems(list)
@@ -264,11 +272,10 @@ end
 
 local function setEnabled(v)
     enabled = v == true
-    startWatching()
     if enabled then
-        scanAllMerchants()
-        for _, merchant in ipairs(MerchantsRoot:GetChildren()) do
-            scanMerchantSlots(merchant)
+        local didScan = startWatching()
+        if not didScan then
+            tryBuyAllMerchants()
         end
     end
 end
