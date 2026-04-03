@@ -10,8 +10,9 @@ end
 
 function Framework.safeInvoke(rf, ...)
     if rf then
+        local args = { ... }
         pcall(function()
-            rf:InvokeServer(...)
+            rf:InvokeServer(table.unpack(args))
         end)
     end
 end
