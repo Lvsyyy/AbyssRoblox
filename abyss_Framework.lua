@@ -545,7 +545,7 @@ function Framework.bindAddRemoveButtons(opts)
     local onRemove = opts.onRemove
     local onRefresh = opts.onRefresh
 
-    if addBtn and type(addBtn.MouseButton1Click) == "RBXScriptSignal" then
+    if addBtn and addBtn.MouseButton1Click then
         addBtn.MouseButton1Click:Connect(function()
             local sel = getSelected and getSelected() or nil
             if not sel then return end
@@ -554,7 +554,7 @@ function Framework.bindAddRemoveButtons(opts)
         end)
     end
 
-    if removeBtn and type(removeBtn.MouseButton1Click) == "RBXScriptSignal" then
+    if removeBtn and removeBtn.MouseButton1Click then
         removeBtn.MouseButton1Click:Connect(function()
             local sel = getSelected and getSelected() or nil
             if not sel then return end
