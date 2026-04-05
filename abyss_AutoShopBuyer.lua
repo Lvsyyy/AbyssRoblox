@@ -124,6 +124,21 @@ local function parseStockAmount(text)
     return 0
 end
 
+local function extractRestock(text)
+    if type(text) ~= "string" then
+        return nil
+    end
+    local hms = text:match("(%d+:%d%d:%d%d)")
+    if hms then
+        return hms
+    end
+    local ms = text:match("(%d+:%d%d)")
+    if ms then
+        return ms
+    end
+    return nil
+end
+
 local function tryBuy(merchant, slotId, label, stockLabel)
     if not enabled or selectedCount == 0 then return end
     if not merchant or not slotId then return end
@@ -278,6 +293,39 @@ local function getAvailableItems()
     return out
 end
 
+local function getMerchantStockLines()
+    local lines = {}
+    for _, merchant in ipairs(MerchantsRoot:GetChildren()) do
+        local folder = merchant:FindFirstChild("Folder")
+        local tableRoot = folder and folder:FindFirstChild("Table")
+        if tableRoot then
+            local items = {}
+            local restock = nil
+            for _, slot in ipairs(tableRoot:GetChildren()) do
+                local id = tonumber(slot.Name)
+                if id then
+                    local label = getItemLabel(slot)
+                    if label then
+                        local stockLabel = getStockLabel(slot)
+                        local stockText = stockLabel and stockLabel.Text or ""
+                        local amount = parseStockAmount(stockText)
+                        if amount > 0 then
+                            items[#items + 1] = label.Text
+                        end
+                        if not restock then
+                            restock = extractRestock(stockText)
+                        end
+                    end
+                end
+            end
+            local itemsStr = (#items > 0) and table.concat(items, " - ") or "--"
+            local restockStr = restock or "--:--"
+            lines[#lines + 1] = itemsStr .. " | " .. restockStr
+        end
+    end
+    return lines
+end
+
 local function setEnabled(v)
     enabled = v == true
     if enabled then
@@ -301,6 +349,7 @@ return {
     removeItem = removeItem,
     getItems = getItems,
     getAvailableItems = getAvailableItems,
+    getMerchantStockLines = getMerchantStockLines,
     setEnabled = setEnabled,
     getEnabled = getEnabled,
 }

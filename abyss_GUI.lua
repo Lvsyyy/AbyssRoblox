@@ -545,7 +545,24 @@ local function makeSelectableRow(parent, text, color, onClick)
     return b
 end
 
-local TAB_NAMES = { "Artifacts", "Deletion", "Shop", "Misc", "AFK" }
+local function makeInfoRow(parent, text)
+    local b = Instance.new("TextLabel")
+    b.Parent = parent
+    b.Size = UDim2.new(1, -8, 0, 24)
+    b.Text = text or ""
+    b.TextXAlignment = Enum.TextXAlignment.Left
+    b.Font = Enum.Font.Gotham
+    b.TextSize = 14
+    b.TextColor3 = Color3.new(1, 1, 1)
+    b.BackgroundColor3 = Color3.fromRGB(45, 45, 54)
+    b.BorderSizePixel = 0
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 5)
+    local p = Instance.new("UIPadding", b)
+    p.PaddingLeft = UDim.new(0, 8)
+    return b
+end
+
+local TAB_NAMES = { "Misc", "Shop", "Info", "Deletion", "AFK" }
 local tabs = {}
 for i = 1, #TAB_NAMES do
     tabs[TAB_NAMES[i]] = makeTabContainer()
@@ -575,88 +592,48 @@ for i = 1, #TAB_NAMES do
     btn.MouseButton1Click:Connect(function() showTab(name) end)
 end
 
--- Artifacts tab
+-- Info tab
 do
-    local t = tabs["Artifacts"]
+    local t = tabs["Info"]
+    local list, lo = makeScrollingList(t, getListHeight({}))
+    local rows = {}
 
-    local row2 = makeRow(t, 2, 34)
-    makeButton(row2, "Update Sets", BTN_GREEN).MouseButton1Click:Connect(
-        function() updateArtifacts.updateAllSets() end
-    )
-    makeButton(row2, "Delete Bad Artifacts", BTN_RED).MouseButton1Click:Connect(
-        function() deleteBadArtifacts.deleteBadArtifacts() end
-    )
-
-    local list, lo = makeScrollingList(t, getListHeight({ 34, 34 }))
-    local autoDeleteEnabled = {}
-
-
-    local function getArtifactNames()
-        local ok, names = pcall(artifactScanner.scanArtifactNames)
-        if not ok or type(names) ~= "table" then
-            return {}
+    local function clearRows()
+        for i = 1, #rows do
+            local r = rows[i]
+            if r and r.Parent then
+                r:Destroy()
+            end
         end
-        return names
+        table.clear(rows)
     end
 
-    local artifactListCtrl = Framework.createListController({
-        list = list,
-        layout = lo,
-        makeRow = makeSelectableRow,
-        getItems = getArtifactNames,
-        colorFor = Framework.makeEnabledColorFn(
-            Color3.fromRGB(150, 62, 62),
-            Color3.fromRGB(70, 94, 138),
-            Color3.fromRGB(45, 45, 54)
-        ),
-        onSelect = function() end,
-    })
-
-    local function getEnabledArtifactsList()
-        local out = {}
-        for name in pairs(autoDeleteEnabled) do
-            out[#out + 1] = name
+    local function refreshInfo()
+        clearRows()
+        local lines = shopBuyer.getMerchantStockLines and shopBuyer.getMerchantStockLines() or {}
+        if #lines == 0 then
+            lines = { "-- | --:--" }
         end
-        table.sort(out)
-        return out
-    end
-
-    local refreshArtifacts = Framework.makeListRefresh(artifactListCtrl, getEnabledArtifactsList)
-    refreshArtifacts()
-
-    local row3 = makeRow(t, 2, 34)
-    local enableDeleteBtn = makeButton(row3, "Add", BTN_GREEN)
-    local disableDeleteBtn = makeButton(row3, "Remove", BTN_RED)
-    Framework.bindAddRemoveButtons({
-        addBtn = enableDeleteBtn,
-        removeBtn = disableDeleteBtn,
-        getSelected = artifactListCtrl.getSelected,
-        onAdd = function(sel)
-            pcall(function() setAutoDeleteRF:InvokeServer(sel, true) end)
-            autoDeleteEnabled[sel] = true
-        end,
-        onRemove = function(sel)
-            pcall(function() setAutoDeleteRF:InvokeServer(sel, false) end)
-            autoDeleteEnabled[sel] = nil
-        end,
-        onRefresh = refreshArtifacts,
-    })
-
-    local function applyArtifactAutoDeleteListImpl(list)
-        for i = 1, #list do
-            local name = list[i]
-            pcall(function() setAutoDeleteRF:InvokeServer(name, true) end)
-            autoDeleteEnabled[name] = true
+        for i = 1, #lines do
+            rows[i] = makeInfoRow(list, lines[i])
         end
-        refreshArtifacts()
-    end
-    local function getArtifactAutoDeleteListImpl()
-        return getEnabledArtifactsList()
+        task.defer(function()
+            if lo then
+                list.CanvasSize = UDim2.new(0, 0, 0, lo.AbsoluteContentSize.Y + 12)
+            end
+        end)
     end
 
-        applyArtifactAutoDeleteList = applyArtifactAutoDeleteListImpl
-        getArtifactAutoDeleteList = getArtifactAutoDeleteListImpl
-    end
+    refreshInfo()
+    _spawn(function()
+        while true do
+            if t.Visible then
+                refreshInfo()
+            end
+            _wait(2)
+        end
+    end)
+end
 
 -- Deletion tab
 do
@@ -742,7 +719,7 @@ end
 -- Misc tab
 do
     local t = tabs["Misc"]
-    local row1 = makeRow(t, 3, 34)
+    local row1 = makeRow(t, 4, 34)
     makeButton(row1, "Weight Set", BTN_PURPLE).MouseButton1Click:Connect(
         function() EquipArtifactsLoadoutRF:InvokeServer(1) end
     )
@@ -751,6 +728,9 @@ do
     )
     makeButton(row1, "Speed Set", BTN_PURPLE).MouseButton1Click:Connect(
         function() EquipArtifactsLoadoutRF:InvokeServer(3) end
+    )
+    makeButton(row1, "Update Sets", BTN_PURPLE).MouseButton1Click:Connect(
+        function() updateArtifacts.updateAllSets() end
     )
 
     local raceEquipRF = RS:WaitForChild("common")
@@ -1097,4 +1077,4 @@ if not hasLoadedSettings then
     updateSettingsUI()
 end
 
-showTab("Artifacts")
+showTab("Misc")
