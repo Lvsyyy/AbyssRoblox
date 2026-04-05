@@ -141,9 +141,9 @@ local function getMerchantRestock(merchant)
     end
     local folder = merchant:FindFirstChild("Folder")
     local sign = folder and folder:FindFirstChild("Sign")
-    local time = sign and sign:FindFirstChild("Time")
+    local time = sign and sign:FindFirstChild("Time", true)
     local surface = time and time:FindFirstChild("SurfaceGui")
-    local label = surface and surface:FindFirstChild("Label")
+    local label = surface and (surface:FindFirstChild("Label") or surface:FindFirstChildWhichIsA("TextLabel", true))
     if label and label:IsA("TextLabel") then
         return extractRestock(label.Text)
     end
@@ -306,25 +306,8 @@ end
 
 local function getMerchantStockLines()
     local lines = {}
-    local groups = {}
-    local order = {}
-
-    local function groupKey(name)
-        if name == "Jeff 2" then
-            return "Jeff"
-        end
-        return name
-    end
-
     for _, merchant in ipairs(MerchantsRoot:GetChildren()) do
-        local key = groupKey(merchant.Name)
-        local entry = groups[key]
-        if not entry then
-            entry = { items = {}, restock = nil }
-            groups[key] = entry
-            order[#order + 1] = key
-        end
-
+        local itemsSet = {}
         local folder = merchant:FindFirstChild("Folder")
         local tableRoot = folder and folder:FindFirstChild("Table")
         if tableRoot then
@@ -337,31 +320,21 @@ local function getMerchantStockLines()
                         local stockText = stockLabel and stockLabel.Text or ""
                         local amount = parseStockAmount(stockText)
                         if amount > 0 then
-                            entry.items[label.Text] = true
+                            itemsSet[label.Text] = true
                         end
                     end
                 end
             end
         end
-
-        if not entry.restock then
-            entry.restock = getMerchantRestock(merchant)
-        end
-    end
-
-    for i = 1, #order do
-        local key = order[i]
-        local entry = groups[key]
         local itemsList = {}
-        for name in pairs(entry.items) do
+        for name in pairs(itemsSet) do
             itemsList[#itemsList + 1] = name
         end
         table.sort(itemsList)
         local itemsStr = (#itemsList > 0) and table.concat(itemsList, " - ") or "No stock"
-        local restockStr = entry.restock or "--:--"
+        local restockStr = getMerchantRestock(merchant) or "--:--"
         lines[#lines + 1] = itemsStr .. " | " .. restockStr
     end
-
     return lines
 end
 
