@@ -307,7 +307,8 @@ end
 local function getMerchantStockLines()
     local lines = {}
     for _, merchant in ipairs(MerchantsRoot:GetChildren()) do
-        if merchant.Name == "Jeff 2" then
+        local mname = merchant.Name or ""
+        if mname == "Jeff 2" or mname:match("^Jeff%s*2$") or mname:find("Jeff 2", 1, true) then
             continue
         end
         local itemsSet = {}
