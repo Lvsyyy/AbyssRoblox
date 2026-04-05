@@ -77,13 +77,26 @@ local function getSortedFishIdsByValue()
     return out
 end
 
+local pondListRef = nil
+
+local function getPondList()
+    if pondListRef and pondListRef.Parent then
+        return pondListRef
+    end
+    local main = pg:FindFirstChild("Main")
+    local center = main and main:FindFirstChild("Center")
+    local pondMain = center and center:FindFirstChild("FishPond") and center.FishPond:FindFirstChild("Main")
+    local list = pondMain
+        and pondMain:FindFirstChild("fishStorage")
+        and pondMain.fishStorage:FindFirstChild("List")
+    if list then
+        pondListRef = list
+    end
+    return list
+end
+
 local function getPondFishIds()
-    local pondList = pg:FindFirstChild("Main")
-        and pg.Main:FindFirstChild("Center")
-        and pg.Main.Center:FindFirstChild("FishPond")
-        and pg.Main.Center.FishPond:FindFirstChild("Main")
-        and pg.Main.Center.FishPond.Main:FindFirstChild("fishStorage")
-        and pg.Main.Center.FishPond.Main.fishStorage:FindFirstChild("List")
+    local pondList = getPondList()
     if not pondList then
         return {}
     end

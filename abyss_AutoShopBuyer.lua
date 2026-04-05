@@ -135,19 +135,52 @@ local function extractRestock(text)
     return nil
 end
 
-local function getMerchantRestock(merchant)
-    if not merchant then
-        return nil
+local function isJeff2Name(name)
+    if type(name) ~= "string" then
+        return false
     end
-    local folder = merchant:FindFirstChild("Folder")
-    local sign = folder and folder:FindFirstChild("Sign")
-    local time = sign and sign:FindFirstChild("Time", true)
-    local surface = time and time:FindFirstChild("SurfaceGui")
-    local label = surface and (surface:FindFirstChild("Label") or surface:FindFirstChildWhichIsA("TextLabel", true))
-    if label and label:IsA("TextLabel") then
-        return extractRestock(label.Text)
+    local s = string.lower(name)
+    -- Remove normal and non-breaking spaces.
+    s = s:gsub("%s+", "")
+    s = s:gsub("\194\160", "")
+    return s == "jeff2"
+end
+
+local merchantCache = nil
+local merchantCount = 0
+
+local function buildMerchantCache()
+    merchantCache = {}
+    merchantCount = 0
+    for _, merchant in ipairs(MerchantsRoot:GetChildren()) do
+        if not isJeff2Name(merchant.Name) then
+            merchantCount += 1
+            local folder = merchant:FindFirstChild("Folder")
+            local tableRoot = folder and folder:FindFirstChild("Table")
+            local sign = folder and folder:FindFirstChild("Sign")
+            local time = sign and sign:FindFirstChild("Time")
+            local surface = time and time:FindFirstChild("SurfaceGui")
+            local restockLabel = surface and surface:FindFirstChild("Label")
+            local slots = {}
+            if tableRoot then
+                for _, slot in ipairs(tableRoot:GetChildren()) do
+                    local id = tonumber(slot.Name)
+                    if id then
+                        local itemLabel = getItemLabel(slot)
+                        local stockLabel = getStockLabel(slot)
+                        if itemLabel and stockLabel then
+                            slots[#slots + 1] = { itemLabel = itemLabel, stockLabel = stockLabel }
+                        end
+                    end
+                end
+            end
+            merchantCache[#merchantCache + 1] = {
+                name = merchant.Name,
+                restockLabel = restockLabel,
+                slots = slots,
+            }
+        end
     end
-    return nil
 end
 
 local function tryBuy(merchant, slotId, label, stockLabel)
@@ -306,36 +339,28 @@ end
 
 local function getMerchantStockLines()
     local lines = {}
-    local function isJeff2Name(name)
-        if type(name) ~= "string" then
-            return false
-        end
-        local s = string.lower(name)
-        -- Remove normal and non-breaking spaces.
-        s = s:gsub("%s+", "")
-        s = s:gsub("\194\160", "")
-        return s == "jeff2"
-    end
+    local expected = 0
     for _, merchant in ipairs(MerchantsRoot:GetChildren()) do
-        if isJeff2Name(merchant.Name) then
-            continue
+        if not isJeff2Name(merchant.Name) then
+            expected += 1
         end
+    end
+    if not merchantCache or merchantCount ~= expected then
+        buildMerchantCache()
+    end
+
+    for i = 1, #merchantCache do
+        local entry = merchantCache[i]
         local itemsSet = {}
-        local folder = merchant:FindFirstChild("Folder")
-        local tableRoot = folder and folder:FindFirstChild("Table")
-        if tableRoot then
-            for _, slot in ipairs(tableRoot:GetChildren()) do
-                local id = tonumber(slot.Name)
-                if id then
-                    local label = getItemLabel(slot)
-                    if label then
-                        local stockLabel = getStockLabel(slot)
-                        local stockText = stockLabel and stockLabel.Text or ""
-                        local amount = parseStockAmount(stockText)
-                        if amount > 0 then
-                            itemsSet[label.Text] = true
-                        end
-                    end
+        local slots = entry.slots
+        for j = 1, #slots do
+            local slot = slots[j]
+            local stockText = slot.stockLabel and slot.stockLabel.Text or ""
+            local amount = parseStockAmount(stockText)
+            if amount > 0 then
+                local text = slot.itemLabel and slot.itemLabel.Text or ""
+                if text ~= "" then
+                    itemsSet[text] = true
                 end
             end
         end
@@ -345,7 +370,7 @@ local function getMerchantStockLines()
         end
         table.sort(itemsList)
         local itemsStr = (#itemsList > 0) and table.concat(itemsList, " - ") or "No stock"
-        local restockStr = getMerchantRestock(merchant) or "--:--"
+        local restockStr = (entry.restockLabel and extractRestock(entry.restockLabel.Text or "")) or "--:--"
         lines[#lines + 1] = itemsStr .. " | " .. restockStr
     end
     return lines

@@ -471,13 +471,11 @@ function Framework.watchGeodeTimer(onChange)
             local model = kids[i]
             if model:IsA("Model") then
                 local root = model:FindFirstChild("RootPart")
-                local gp = (root and root:FindFirstChild("geodeProcess", true)) or model:FindFirstChild("geodeProcess", true)
-                if gp then
-                    local frame = gp:FindFirstChild("Frame", true)
-                    local label = frame and frame:FindFirstChild("Label", true)
-                    if label and label:IsA("TextLabel") then
-                        return label
-                    end
+                local gp = root and root:FindFirstChild("geodeProcess")
+                local frame = gp and gp:FindFirstChild("Frame")
+                local label = frame and frame:FindFirstChild("Label")
+                if label and label:IsA("TextLabel") then
+                    return label
                 end
             end
         end

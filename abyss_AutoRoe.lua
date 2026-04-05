@@ -29,14 +29,20 @@ local function sell()
     end)
 end
 
+local pondWeightLabel = nil
+
 local function getItemWeightLabel()
+    if pondWeightLabel and pondWeightLabel.Parent then
+        return pondWeightLabel
+    end
     local main = pg:FindFirstChild("Main")
     local center = main and main:FindFirstChild("Center")
-    local fishPond = center and center:FindFirstChild("FishPond")
-    local pondMain = fishPond and fishPond:FindFirstChild("Main")
-    local itemStash = pondMain and pondMain:FindFirstChild("itemStash")
-    local itemWeight = itemStash and itemStash:FindFirstChild("ItemWeight")
+    local pondMain = center and center:FindFirstChild("FishPond") and center.FishPond:FindFirstChild("Main")
+    local itemWeight = pondMain
+        and pondMain:FindFirstChild("itemStash")
+        and pondMain.itemStash:FindFirstChild("ItemWeight")
     if itemWeight and itemWeight:IsA("TextLabel") then
+        pondWeightLabel = itemWeight
         return itemWeight
     end
     return nil
