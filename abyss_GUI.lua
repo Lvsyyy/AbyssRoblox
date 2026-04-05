@@ -12,46 +12,9 @@ local _spawn = (task and task.spawn) or spawn
 local _defer = (task and task.defer) or function(fn, ...)
     _spawn(fn, ...)
 end
-local g = (getgenv and getgenv()) or _G
-local MODULE_CACHE_VERSION = "2026-04-05-5"
-local sharedCache = g and g.__abyss_module_cache
-if not sharedCache or (g and g.__abyss_module_cache_version ~= MODULE_CACHE_VERSION) then
-    sharedCache = { src = {}, loading = {} }
-    if g then
-        g.__abyss_module_cache = sharedCache
-        g.__abyss_module_cache_version = MODULE_CACHE_VERSION
-    end
-end
-local MODULE_SRC = sharedCache.src
-local MODULE_LOADING = sharedCache.loading
 local LOADED_MODULES = {}
-local CACHE_BUST = tostring(math.floor((os.clock() * 1000) % 1000000000))
-
-local function fetchModuleSource(name, cacheBust)
-    local url = BASE .. name .. ".lua"
-    if cacheBust then
-        url = url .. "?cb=" .. CACHE_BUST
-    end
-    local ok, fetched = pcall(function()
-        return game:HttpGet(url)
-    end)
-    if ok and type(fetched) == "string" and fetched ~= "" then
-        MODULE_SRC[name] = fetched
-        return fetched
-    end
-    return nil
-end
 
 local function loadModule(name)
-    if type(MODULE_SRC) ~= "table" then
-        MODULE_SRC = {}
-    end
-    if type(MODULE_LOADING) ~= "table" then
-        MODULE_LOADING = {}
-    end
-    if type(LOADED_MODULES) ~= "table" then
-        LOADED_MODULES = {}
-    end
     if type(name) ~= "string" or name == "" then
         error("Invalid module name: " .. tostring(name))
     end
@@ -60,31 +23,14 @@ local function loadModule(name)
         return LOADED_MODULES[name]
     end
 
-    local src = MODULE_SRC[name]
-    if not src and MODULE_LOADING[name] then
-        for _ = 1, 50 do
-            local cached = MODULE_SRC[name]
-            if type(cached) == "string" and cached ~= "" then
-                src = cached
-                break
-            end
-            _wait()
-        end
-    end
-
-    if not src then
-        src = fetchModuleSource(name, false)
-        if not src then
-            error("Failed to load module: " .. tostring(name))
-        end
+    local ok, src = pcall(function()
+        return game:HttpGet(BASE .. name .. ".lua")
+    end)
+    if not ok or type(src) ~= "string" or src == "" then
+        error("Failed to load module: " .. tostring(name))
     end
 
     local mod, err = loadstring(src)
-    if not mod then
-        -- Cache-bust and retry once in case the CDN served stale content.
-        src = fetchModuleSource(name, true) or src
-        mod, err = loadstring(src)
-    end
     if not mod then
         error("Failed to compile module: " .. tostring(name) .. " (" .. tostring(err) .. ")")
     end
@@ -95,36 +41,6 @@ local function loadModule(name)
     LOADED_MODULES[name] = result
     return result
 end
-
-local function prefetchModules(list)
-    for i = 1, #list do
-        local name = list[i]
-        if not MODULE_SRC[name] and not MODULE_LOADING[name] then
-            MODULE_LOADING[name] = true
-            _spawn(function()
-                fetchModuleSource(name, true)
-                MODULE_LOADING[name] = false
-            end)
-        end
-    end
-end
-
-local MODULE_LIST = {
-    "abyss_PortableStash",
-    "abyss_ArtifactManager",
-    "abyss_AutoShopBuyer",
-    "abyss_AutoFishDelete",
-    "abyss_AutoGeode",
-    "abyss_GeodeOnly",
-    "abyss_AutoDaily",
-    "abyss_AutoRejoin",
-    "abyss_AutoRoe",
-    "abyss_ValueCalculator",
-    "abyss_FishPond",
-    "abyss_Framework",
-}
-
-prefetchModules(MODULE_LIST)
 
 local Framework = loadModule("abyss_Framework")
 local portableStash = loadModule("abyss_PortableStash")

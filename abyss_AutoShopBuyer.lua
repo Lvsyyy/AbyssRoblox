@@ -307,6 +307,9 @@ end
 local function getMerchantStockLines()
     local lines = {}
     for _, merchant in ipairs(MerchantsRoot:GetChildren()) do
+        if merchant.Name == "Jeff 2" then
+            continue
+        end
         local itemsSet = {}
         local folder = merchant:FindFirstChild("Folder")
         local tableRoot = folder and folder:FindFirstChild("Table")
