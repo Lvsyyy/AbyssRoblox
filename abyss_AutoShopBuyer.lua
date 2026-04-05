@@ -135,25 +135,17 @@ local function extractRestock(text)
     return nil
 end
 
-local function findRestockText(root)
-    if not root then
+local function getMerchantRestock(merchant)
+    if not merchant then
         return nil
     end
-    for _, inst in ipairs(root:GetDescendants()) do
-        if inst:IsA("TextLabel") then
-            local text = inst.Text or ""
-            if text ~= "" then
-                local low = string.lower(text)
-                local isRestock = low:find("restock", 1, true)
-                    or low:find("restocked", 1, true)
-                    or low:find("refresh", 1, true)
-                    or low:find("next", 1, true)
-                local time = extractRestock(text)
-                if time and (isRestock or text:find(":", 1, true)) then
-                    return time
-                end
-            end
-        end
+    local folder = merchant:FindFirstChild("Folder")
+    local sign = folder and folder:FindFirstChild("Sign")
+    local time = sign and sign:FindFirstChild("Time")
+    local surface = time and time:FindFirstChild("SurfaceGui")
+    local label = surface and surface:FindFirstChild("Label")
+    if label and label:IsA("TextLabel") then
+        return extractRestock(label.Text)
     end
     return nil
 end
@@ -314,12 +306,28 @@ end
 
 local function getMerchantStockLines()
     local lines = {}
+    local groups = {}
+    local order = {}
+
+    local function groupKey(name)
+        if name == "Jeff 2" then
+            return "Jeff"
+        end
+        return name
+    end
+
     for _, merchant in ipairs(MerchantsRoot:GetChildren()) do
+        local key = groupKey(merchant.Name)
+        local entry = groups[key]
+        if not entry then
+            entry = { items = {}, restock = nil }
+            groups[key] = entry
+            order[#order + 1] = key
+        end
+
         local folder = merchant:FindFirstChild("Folder")
         local tableRoot = folder and folder:FindFirstChild("Table")
         if tableRoot then
-            local items = {}
-            local restock = nil
             for _, slot in ipairs(tableRoot:GetChildren()) do
                 local id = tonumber(slot.Name)
                 if id then
@@ -329,22 +337,31 @@ local function getMerchantStockLines()
                         local stockText = stockLabel and stockLabel.Text or ""
                         local amount = parseStockAmount(stockText)
                         if amount > 0 then
-                            items[#items + 1] = label.Text
-                        end
-                        if not restock then
-                            restock = extractRestock(stockText)
+                            entry.items[label.Text] = true
                         end
                     end
                 end
             end
-            if not restock then
-                restock = findRestockText(merchant)
-            end
-            local itemsStr = (#items > 0) and table.concat(items, " - ") or "No stock"
-            local restockStr = restock or "--:--"
-            lines[#lines + 1] = itemsStr .. " | " .. restockStr
+        end
+
+        if not entry.restock then
+            entry.restock = getMerchantRestock(merchant)
         end
     end
+
+    for i = 1, #order do
+        local key = order[i]
+        local entry = groups[key]
+        local itemsList = {}
+        for name in pairs(entry.items) do
+            itemsList[#itemsList + 1] = name
+        end
+        table.sort(itemsList)
+        local itemsStr = (#itemsList > 0) and table.concat(itemsList, " - ") or "No stock"
+        local restockStr = entry.restock or "--:--"
+        lines[#lines + 1] = itemsStr .. " | " .. restockStr
+    end
+
     return lines
 end
 
