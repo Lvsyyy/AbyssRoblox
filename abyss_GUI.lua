@@ -13,7 +13,7 @@ local _defer = (task and task.defer) or function(fn, ...)
     _spawn(fn, ...)
 end
 local g = (getgenv and getgenv()) or _G
-local MODULE_CACHE_VERSION = "2026-04-03-1"
+local MODULE_CACHE_VERSION = "2026-04-05-3"
 local sharedCache = g and g.__abyss_module_cache
 if not sharedCache or (g and g.__abyss_module_cache_version ~= MODULE_CACHE_VERSION) then
     sharedCache = { src = {}, loading = {} }

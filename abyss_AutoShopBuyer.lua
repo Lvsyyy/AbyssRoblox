@@ -128,13 +128,32 @@ local function extractRestock(text)
     if type(text) ~= "string" then
         return nil
     end
-    local hms = text:match("(%d+:%d%d:%d%d)")
-    if hms then
-        return hms
-    end
     local ms = text:match("(%d+:%d%d)")
     if ms then
         return ms
+    end
+    return nil
+end
+
+local function findRestockText(root)
+    if not root then
+        return nil
+    end
+    for _, inst in ipairs(root:GetDescendants()) do
+        if inst:IsA("TextLabel") then
+            local text = inst.Text or ""
+            if text ~= "" then
+                local low = string.lower(text)
+                local isRestock = low:find("restock", 1, true)
+                    or low:find("restocked", 1, true)
+                    or low:find("refresh", 1, true)
+                    or low:find("next", 1, true)
+                local time = extractRestock(text)
+                if time and (isRestock or text:find(":", 1, true)) then
+                    return time
+                end
+            end
+        end
     end
     return nil
 end
@@ -318,7 +337,10 @@ local function getMerchantStockLines()
                     end
                 end
             end
-            local itemsStr = (#items > 0) and table.concat(items, " - ") or "--"
+            if not restock then
+                restock = findRestockText(merchant)
+            end
+            local itemsStr = (#items > 0) and table.concat(items, " - ") or "No stock"
             local restockStr = restock or "--:--"
             lines[#lines + 1] = itemsStr .. " | " .. restockStr
         end
