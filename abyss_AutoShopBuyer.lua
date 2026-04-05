@@ -306,9 +306,18 @@ end
 
 local function getMerchantStockLines()
     local lines = {}
+    local function isJeff2Name(name)
+        if type(name) ~= "string" then
+            return false
+        end
+        local s = string.lower(name)
+        -- Remove normal and non-breaking spaces.
+        s = s:gsub("%s+", "")
+        s = s:gsub("\194\160", "")
+        return s == "jeff2"
+    end
     for _, merchant in ipairs(MerchantsRoot:GetChildren()) do
-        local mname = merchant.Name or ""
-        if mname == "Jeff 2" or mname:match("^Jeff%s*2$") or mname:find("Jeff 2", 1, true) then
+        if isJeff2Name(merchant.Name) then
             continue
         end
         local itemsSet = {}
