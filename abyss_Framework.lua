@@ -602,7 +602,11 @@ function Framework.sellAll()
     local InvRF = S.InventoryService.RF
     local SellRF = S.SellService.RF.SellInventory
     local EquipArtifactsLoadoutRF = InvRF.EquipArtifactsLoadout
+    local EquipRaceSlotRF = S.RaceService and S.RaceService.RF and S.RaceService.RF.EquipSlot or nil
     EquipArtifactsLoadoutRF:InvokeServer(4)
+    if EquipRaceSlotRF then
+        EquipRaceSlotRF:InvokeServer("2")
+    end
     SellRF:InvokeServer()
 end
 
