@@ -11,8 +11,8 @@ local openRF = RS:WaitForChild("common")
 
 local artifactFolder = WS:WaitForChild("Game"):WaitForChild("ArtifactAnim"):WaitForChild("Artifact")
 
-local nameSet = { ["coconut"] = true }
-local nameList = { "Coconut" }
+local nameSet = {}
+local nameList = {}
 
 local g = (getgenv and getgenv()) or _G
 local Framework = g and g.__abyss_framework
