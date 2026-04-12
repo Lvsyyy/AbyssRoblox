@@ -17,6 +17,13 @@ local isId = (Framework and Framework.isHexId32) or function(str)
     return type(str) == "string" and #str == 32 and str:match("^[a-f0-9]+$") ~= nil
 end
 
+local function safeRef(inst)
+    if inst and type(cloneref) == "function" then
+        return cloneref(inst)
+    end
+    return inst
+end
+
 local function setInventory(list)
     inventoryList = type(list) == "table" and list or {}
 end
@@ -90,9 +97,9 @@ local function getPondList()
         and pondMain:FindFirstChild("fishStorage")
         and pondMain.fishStorage:FindFirstChild("List")
     if list then
-        pondListRef = list
+        pondListRef = safeRef(list)
     end
-    return list
+    return pondListRef or list
 end
 
 local function getPondFishIds()

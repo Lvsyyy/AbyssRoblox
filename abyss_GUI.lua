@@ -23,10 +23,27 @@ local function loadModule(name)
         return LOADED_MODULES[name]
     end
 
-    local ok, src = pcall(function()
-        return game:HttpGet(BASE .. name .. ".lua")
-    end)
-    if not ok or type(src) ~= "string" or src == "" then
+    local url = BASE .. name .. ".lua"
+    local src
+    if type(request) == "function" then
+        local okReq, resp = pcall(request, {
+            Url = url,
+            Method = "GET",
+            Headers = { ["Cache-Control"] = "no-cache" },
+        })
+        if okReq and type(resp) == "table" and tonumber(resp.StatusCode) == 200 and type(resp.Body) == "string" and resp.Body ~= "" then
+            src = resp.Body
+        end
+    end
+    if not src then
+        local ok, body = pcall(function()
+            return game:HttpGet(url)
+        end)
+        if ok and type(body) == "string" and body ~= "" then
+            src = body
+        end
+    end
+    if not src then
         error("Failed to load module: " .. tostring(name))
     end
 

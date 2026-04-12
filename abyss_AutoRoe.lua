@@ -16,6 +16,13 @@ local enabled = false
 local nonce = 0
 local labelConn = nil
 
+local function safeRef(inst)
+    if inst and type(cloneref) == "function" then
+        return cloneref(inst)
+    end
+    return inst
+end
+
 local function collect()
     pcall(function()
         CollectAllRF:InvokeServer()
@@ -42,8 +49,8 @@ local function getItemWeightLabel()
         and pondMain:FindFirstChild("itemStash")
         and pondMain.itemStash:FindFirstChild("ItemWeight")
     if itemWeight and itemWeight:IsA("TextLabel") then
-        pondWeightLabel = itemWeight
-        return itemWeight
+        pondWeightLabel = safeRef(itemWeight)
+        return pondWeightLabel
     end
     return nil
 end

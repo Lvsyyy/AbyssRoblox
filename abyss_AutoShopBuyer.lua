@@ -28,6 +28,13 @@ local normalize = (Framework and Framework.normalize) or function(s)
     return string.lower(s):gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
 end
 
+local function safeRef(inst)
+    if inst and type(cloneref) == "function" then
+        return cloneref(inst)
+    end
+    return inst
+end
+
 local function addAvailableName(name, seen)
     if type(name) ~= "string" or name == "" then
         return
@@ -169,14 +176,17 @@ local function buildMerchantCache()
                         local itemLabel = getItemLabel(slot)
                         local stockLabel = getStockLabel(slot)
                         if itemLabel and stockLabel then
-                            slots[#slots + 1] = { itemLabel = itemLabel, stockLabel = stockLabel }
+                            slots[#slots + 1] = {
+                                itemLabel = safeRef(itemLabel),
+                                stockLabel = safeRef(stockLabel),
+                            }
                         end
                     end
                 end
             end
             merchantCache[#merchantCache + 1] = {
                 name = merchant.Name,
-                restockLabel = restockLabel,
+                restockLabel = safeRef(restockLabel),
                 slots = slots,
             }
         end

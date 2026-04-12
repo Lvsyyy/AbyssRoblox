@@ -491,6 +491,13 @@ function Framework.watchGeodeTimer(onChange)
         setText("--:--")
     end
 
+    local function safeRef(inst)
+        if inst and type(cloneref) == "function" then
+            return cloneref(inst)
+        end
+        return inst
+    end
+
     local function attachGeode(label)
         if not (label and label:IsA("TextLabel")) then
             return
@@ -498,7 +505,7 @@ function Framework.watchGeodeTimer(onChange)
         if geodeConn then
             geodeConn:Disconnect()
         end
-        geodeLabel = label
+        geodeLabel = safeRef(label)
         setText(label.Visible and label.Text or "--:--")
         geodeConn = label:GetPropertyChangedSignal("Text"):Connect(function()
             if geodeLabel then
