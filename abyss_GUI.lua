@@ -298,13 +298,24 @@ local function setAutoDeposit(on)
     autoDepositOn = autoDepositRunner.getEnabled()
 end
 
-local old = pg:FindFirstChild("AbyssQoLGui")
+local function resolveGuiParent()
+    if type(gethui) == "function" then
+        local ok, hui = pcall(gethui)
+        if ok and hui then
+            return hui
+        end
+    end
+    return pg
+end
+
+local guiParent = resolveGuiParent()
+local old = guiParent:FindFirstChild("AbyssQoLGui") or pg:FindFirstChild("AbyssQoLGui")
 if old then old:Destroy() end
 
 local sg = Instance.new("ScreenGui")
 sg.Name = "AbyssQoLGui"
 sg.ResetOnSpawn = false
-sg.Parent = pg
+sg.Parent = guiParent
 
 local frame = Instance.new("Frame")
 frame.Parent = sg

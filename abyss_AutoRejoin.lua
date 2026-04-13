@@ -72,6 +72,7 @@ local function httpGet(url)
     local ok, resp = pcall(request, {
         Url = url,
         Method = "GET",
+        Headers = { ["Cache-Control"] = "no-cache" },
     })
     if ok and type(resp) == "table" and tonumber(resp.StatusCode) == 200 and type(resp.Body) == "string" then
         return resp.Body

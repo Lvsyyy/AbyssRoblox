@@ -398,10 +398,26 @@ function Framework.fetchLatestCommitVersion(owner, repo)
     owner = owner or "Lvsyyy"
     repo = repo or "AbyssRoblox"
     local url = "https://api.github.com/repos/" .. owner .. "/" .. repo .. "/commits?per_page=1"
-    local ok, body = pcall(function()
-        return game:HttpGet(url)
-    end)
-    if not ok or type(body) ~= "string" then
+    local body = nil
+    if type(request) == "function" then
+        local okReq, resp = pcall(request, {
+            Url = url,
+            Method = "GET",
+            Headers = { ["Cache-Control"] = "no-cache" },
+        })
+        if okReq and type(resp) == "table" and tonumber(resp.StatusCode) == 200 and type(resp.Body) == "string" then
+            body = resp.Body
+        end
+    end
+    if not body then
+        local ok, fetched = pcall(function()
+            return game:HttpGet(url)
+        end)
+        if ok and type(fetched) == "string" then
+            body = fetched
+        end
+    end
+    if type(body) ~= "string" then
         return nil
     end
     local HttpService = game:GetService("HttpService")
