@@ -16,15 +16,40 @@ if g then
     g.__abyss_auto_rejoin_loaded = true
 end
 
+local function httpGet(url)
+    local ok, resp = pcall(request, {
+        Url = url,
+        Method = "GET",
+        Headers = { ["Cache-Control"] = "no-cache" },
+    })
+    if ok and type(resp) == "table" and tonumber(resp.StatusCode) == 200 and type(resp.Body) == "string" then
+        return resp.Body
+    end
+
+    local ok2, body = pcall(function()
+        return game:HttpGet(url)
+    end)
+    if ok2 and type(body) == "string" and body ~= "" then
+        return body
+    end
+
+    return nil
+end
+
 local function runConfiguredScript()
     if type(GUI_URL) ~= "string" or GUI_URL == "" then
         return
     end
     _wait(5)
     for _ = 1, 12 do
-        local ok = pcall(function()
-            loadstring(game:HttpGet(GUI_URL))()
-        end)
+        local ok = false
+        local body = httpGet(GUI_URL)
+        if type(body) == "string" and body ~= "" then
+            local fn = loadstring(body)
+            if fn then
+                ok = pcall(fn)
+            end
+        end
         if ok then
             return
         end
@@ -49,11 +74,13 @@ local function queueScriptOnTeleport(code)
 end
 
 local function buildGuiReexecCode()
-    return ("local u=%q task.wait(5) for i=1,12 do local ok=pcall(function() loadstring(game:HttpGet(u))() end) if ok then break end task.wait(2) end"):format(GUI_URL)
+    local fetch = "local body=nil if type(request)=='function' then local ok,resp=pcall(request,{Url=u,Method='GET',Headers={['Cache-Control']='no-cache'}}) if ok and type(resp)=='table' and tonumber(resp.StatusCode)==200 and type(resp.Body)=='string' and resp.Body~='' then body=resp.Body end end if not body then local ok2,resp2=pcall(function() return game:HttpGet(u) end) if ok2 and type(resp2)=='string' and resp2~='' then body=resp2 end end"
+    return ("local u=%q task.wait(5) for i=1,12 do %s local ok=false if type(body)=='string' and body~='' then local fn=loadstring(body) if fn then ok=pcall(fn) end end if ok then break end task.wait(2) end"):format(GUI_URL, fetch)
 end
 
 local function buildAutoRejoinCode()
-    return ("pcall(function() loadstring(game:HttpGet(%q))() end)"):format(REJOIN_URL)
+    local fetch = "local body=nil if type(request)=='function' then local ok,resp=pcall(request,{Url=u,Method='GET',Headers={['Cache-Control']='no-cache'}}) if ok and type(resp)=='table' and tonumber(resp.StatusCode)==200 and type(resp.Body)=='string' and resp.Body~='' then body=resp.Body end end if not body then local ok2,resp2=pcall(function() return game:HttpGet(u) end) if ok2 and type(resp2)=='string' and resp2~='' then body=resp2 end end"
+    return ("pcall(function() local u=%q %s if type(body)=='string' and body~='' then local fn=loadstring(body) if fn then fn() end end end)"):format(REJOIN_URL, fetch)
 end
 
 local function buildQueueCode()
@@ -66,26 +93,6 @@ do
     if g then
         g.__abyss_reexec_queued = ok and true or false
     end
-end
-
-local function httpGet(url)
-    local ok, resp = pcall(request, {
-        Url = url,
-        Method = "GET",
-        Headers = { ["Cache-Control"] = "no-cache" },
-    })
-    if ok and type(resp) == "table" and tonumber(resp.StatusCode) == 200 and type(resp.Body) == "string" then
-        return resp.Body
-    end
-
-    local ok2, body = pcall(function()
-        return game:HttpGet(url)
-    end)
-    if ok2 and type(body) == "string" and body ~= "" then
-        return body
-    end
-
-    return nil
 end
 
 local PROBE_URLS = {
