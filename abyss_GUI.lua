@@ -82,6 +82,9 @@ portableStash.init()
 if fishPond and fishPond.setValueCalculator then
     fishPond.setValueCalculator(valueCalc)
 end
+if fishAutoDelete and fishAutoDelete.setValueCalculator then
+    fishAutoDelete.setValueCalculator(valueCalc)
+end
 
 if valueCalc and valueCalc.getTables then
     _spawn(function()
@@ -193,6 +196,7 @@ local antiOn = false
 local autoDepositOn = false
 local setAntiAfk
 local setFishToggleVisual
+local setFishThresholdVisual
 local refreshFishList
 local applyArtifactAutoDeleteList
 local getArtifactAutoDeleteList
@@ -489,6 +493,22 @@ local function makeSelectableRow(parent, text, color, onClick)
     return b
 end
 
+local function makeInput(parent, placeholder)
+    local b = Instance.new("TextBox")
+    b.Parent = parent
+    b.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
+    b.Font = Enum.Font.GothamSemibold
+    b.TextSize = 14
+    b.TextColor3 = Color3.fromRGB(240, 240, 240)
+    b.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
+    b.PlaceholderText = placeholder or ""
+    b.ClearTextOnFocus = false
+    b.Text = ""
+    b.BorderSizePixel = 0
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+    return b
+end
+
 local function makeInfoRow(parent, text)
     local b = Instance.new("TextLabel")
     b.Parent = parent
@@ -582,12 +602,16 @@ end
 -- Deletion tab
 do
     local t = tabs["Deletion"]
+    local row1 = makeRow(t, 2, 34)
+    local thresholdBox = makeInput(row1, "")
+    local thresholdToggleBtn = makeButton(row1, "Treshold: Off", BTN_RED)
+
     local row2 = makeRow(t, 3, 34)
     local addBtn = makeButton(row2, "Add", BTN_GREEN)
     local delBtn = makeButton(row2, "Remove", BTN_RED)
     local toggleBtn = makeButton(row2, "Delete Fish: OFF", BTN_RED)
 
-    local list, lo = makeScrollingList(t, getListHeight({ 34 }))
+    local list, lo = makeScrollingList(t, getListHeight({ 34, 34 }))
 
     local function getFishModelNames()
         local out = {}
@@ -620,6 +644,24 @@ do
     local refreshList = Framework.makeListRefresh(fishListCtrl, fishAutoDelete.getNames)
     refreshFishList = refreshList
 
+    local function parseThresholdText()
+        local raw = (thresholdBox.Text or ""):gsub("^%s+", ""):gsub("%s+$", "")
+        if raw == "" then
+            return nil, false
+        end
+        local n = tonumber(raw:gsub(",", ""))
+        if n and n >= 0 then
+            return n, true
+        end
+        return nil, false
+    end
+
+    local function renderThreshold()
+        local on = fishAutoDelete.getValueThresholdEnabled and fishAutoDelete.getValueThresholdEnabled() or false
+        Framework.setToggleVisual(thresholdToggleBtn, on, "Treshold: On", "Treshold: Off", BTN_GREEN, BTN_RED)
+    end
+    setFishThresholdVisual = renderThreshold
+
     setFishToggleVisual = bindToggle(
         toggleBtn,
         fishAutoDelete.getEnabled,
@@ -627,6 +669,32 @@ do
         "Delete Fish: ON",
         "Delete Fish: OFF"
     )
+
+    thresholdBox.FocusLost:Connect(function()
+        local n, hasValue = parseThresholdText()
+        if hasValue and fishAutoDelete.setValueThreshold then
+            fishAutoDelete.setValueThreshold(n)
+        end
+        thresholdBox.Text = ""
+        renderThreshold()
+    end)
+
+    thresholdToggleBtn.MouseButton1Click:Connect(function()
+        local n, hasValue = parseThresholdText()
+        if hasValue and fishAutoDelete.setValueThreshold then
+            fishAutoDelete.setValueThreshold(n)
+        end
+        local on = fishAutoDelete.getValueThresholdEnabled and fishAutoDelete.getValueThresholdEnabled() or false
+        if fishAutoDelete.setValueThresholdEnabled then
+            fishAutoDelete.setValueThresholdEnabled(not on)
+        end
+        thresholdBox.Text = ""
+        renderThreshold()
+    end)
+
+    thresholdBox.ClearTextOnFocus = false
+    thresholdBox.Text = ""
+    thresholdBox.PlaceholderText = ""
 
     Framework.bindAddRemoveButtons({
         addBtn = addBtn,
@@ -658,6 +726,7 @@ do
         onRefresh = function() end,
     })
 
+    renderThreshold()
 end
 
 -- Misc tab
@@ -722,6 +791,8 @@ do
         local payload = {
             fishNames = fishAutoDelete.getNames(),
             fishEnabled = fishAutoDelete.getEnabled(),
+            fishValueThreshold = fishAutoDelete.getValueThreshold and fishAutoDelete.getValueThreshold() or nil,
+            fishValueThresholdEnabled = fishAutoDelete.getValueThresholdEnabled and fishAutoDelete.getValueThresholdEnabled() or false,
             antiAfk = antiOn,
             artifactAutoDelete = getArtifactAutoDeleteList and getArtifactAutoDeleteList() or {},
             shopItems = shopBuyer.getItems(),
@@ -947,6 +1018,9 @@ local function updateSettingsUI()
     if setFishToggleVisual then
         setFishToggleVisual(fishAutoDelete.getEnabled())
     end
+    if setFishThresholdVisual then
+        setFishThresholdVisual()
+    end
     if refreshFishList then
         refreshFishList()
     end
@@ -984,6 +1058,16 @@ local function loadSavedSettings()
     end
     if decoded.fishEnabled ~= nil then
         fishAutoDelete.setEnabled(decoded.fishEnabled == true)
+    end
+    if fishAutoDelete.setValueThreshold then
+        fishAutoDelete.setValueThreshold(decoded.fishValueThreshold)
+    end
+    if fishAutoDelete.setValueThresholdEnabled then
+        local thresholdEnabled = decoded.fishValueThresholdEnabled
+        if thresholdEnabled == nil then
+            thresholdEnabled = decoded.fishValueThreshold ~= nil
+        end
+        fishAutoDelete.setValueThresholdEnabled(thresholdEnabled == true)
     end
     if type(decoded.artifactAutoDelete) == "table" and applyArtifactAutoDeleteList then
         applyArtifactAutoDeleteList(decoded.artifactAutoDelete)
