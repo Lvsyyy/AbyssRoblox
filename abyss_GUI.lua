@@ -645,7 +645,7 @@ do
 
     local function parseThresholdText()
         local n = tonumber(thresholdBox.Text)
-        return n, n ~= nil and n >= 0
+        return n, n ~= nil
     end
 
     setFishThresholdToggleVisual = bindToggle(
@@ -658,7 +658,6 @@ do
                     fishAutoDelete.setValueThreshold(n)
                 end
 
-                -- block enabling if still no valid value
                 if type(fishAutoDelete.getValueThreshold()) ~= "number" then
                     return
                 end
@@ -684,8 +683,8 @@ do
         local n, hasValue = parseThresholdText()
         if hasValue then
             fishAutoDelete.setValueThreshold(n)
+            thresholdBox.Text = tostring(n) -- keep + normalize
         end
-        thresholdBox.Text = ""
     end)
 
     thresholdBox.ClearTextOnFocus = false
