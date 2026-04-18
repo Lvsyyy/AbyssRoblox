@@ -637,7 +637,6 @@ do
             Color3.fromRGB(45, 45, 54)
         ),
         onSelect = function(name)
-            -- nothing extra
         end,
     })
 
@@ -645,22 +644,33 @@ do
     refreshFishList = refreshList
 
     local function parseThresholdText()
-        local raw = (thresholdBox.Text or ""):gsub("^%s+", ""):gsub("%s+$", "")
-        if raw == "" then
-            return nil, false
-        end
-        local n = tonumber(raw:gsub(",", ""))
-        if n and n >= 0 then
-            return n, true
-        end
-        return nil, false
+        local n = tonumber(thresholdBox.Text)
+        return n, n ~= nil and n >= 0
     end
 
-    local function renderThreshold()
-        local on = fishAutoDelete.getValueThresholdEnabled and fishAutoDelete.getValueThresholdEnabled() or false
-        Framework.setToggleVisual(thresholdToggleBtn, on, "Treshold: On", "Treshold: Off", BTN_GREEN, BTN_RED)
-    end
-    setFishThresholdVisual = renderThreshold
+    setFishThresholdToggleVisual = bindToggle(
+        thresholdToggleBtn,
+        fishAutoDelete.getValueThresholdEnabled,
+        function(on)
+            if on then
+                local n, hasValue = parseThresholdText()
+                if hasValue then
+                    fishAutoDelete.setValueThreshold(n)
+                end
+
+                -- block enabling if still no valid value
+                if type(fishAutoDelete.getValueThreshold()) ~= "number" then
+                    return
+                end
+            end
+
+            fishAutoDelete.setValueThresholdEnabled(on)
+        end,
+        "Treshold: On",
+        "Treshold: Off",
+        BTN_GREEN,
+        BTN_RED
+    )
 
     setFishToggleVisual = bindToggle(
         toggleBtn,
@@ -672,24 +682,10 @@ do
 
     thresholdBox.FocusLost:Connect(function()
         local n, hasValue = parseThresholdText()
-        if hasValue and fishAutoDelete.setValueThreshold then
+        if hasValue then
             fishAutoDelete.setValueThreshold(n)
         end
         thresholdBox.Text = ""
-        renderThreshold()
-    end)
-
-    thresholdToggleBtn.MouseButton1Click:Connect(function()
-        local n, hasValue = parseThresholdText()
-        if hasValue and fishAutoDelete.setValueThreshold then
-            fishAutoDelete.setValueThreshold(n)
-        end
-        local on = fishAutoDelete.getValueThresholdEnabled and fishAutoDelete.getValueThresholdEnabled() or false
-        if fishAutoDelete.setValueThresholdEnabled then
-            fishAutoDelete.setValueThresholdEnabled(not on)
-        end
-        thresholdBox.Text = ""
-        renderThreshold()
     end)
 
     thresholdBox.ClearTextOnFocus = false
@@ -725,8 +721,6 @@ do
         end,
         onRefresh = function() end,
     })
-
-    renderThreshold()
 end
 
 -- Misc tab
