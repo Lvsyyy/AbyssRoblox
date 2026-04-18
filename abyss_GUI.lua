@@ -604,6 +604,7 @@ do
     local t = tabs["Deletion"]
     local row1 = makeRow(t, 2, 34)
     local thresholdBox = makeInput(row1, "")
+    thresholdBox.ClearTextOnFocus = false
     local thresholdToggleBtn = makeButton(row1, "Treshold: Off", BTN_RED)
 
     local row2 = makeRow(t, 3, 34)
@@ -683,11 +684,9 @@ do
         local n, hasValue = parseThresholdText()
         if hasValue then
             fishAutoDelete.setValueThreshold(n)
-            thresholdBox.Text = tostring(n) -- keep + normalize
         end
     end)
 
-    thresholdBox.ClearTextOnFocus = false
     thresholdBox.Text = ""
     thresholdBox.PlaceholderText = ""
 
