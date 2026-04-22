@@ -16,14 +16,33 @@ if g then
     g.__abyss_auto_rejoin_loaded = true
 end
 
+local function getRequestFn()
+    if type(request) == "function" then
+        return request
+    end
+    if type(http_request) == "function" then
+        return http_request
+    end
+    if type(syn) == "table" and type(syn.request) == "function" then
+        return syn.request
+    end
+    if type(http) == "table" and type(http.request) == "function" then
+        return http.request
+    end
+    return nil
+end
+
 local function httpGet(url)
-    local ok, resp = pcall(request, {
-        Url = url,
-        Method = "GET",
-        Headers = { ["Cache-Control"] = "no-cache" },
-    })
-    if ok and type(resp) == "table" and tonumber(resp.StatusCode) == 200 and type(resp.Body) == "string" then
-        return resp.Body
+    local req = getRequestFn()
+    if req then
+        local ok, resp = pcall(req, {
+            Url = url,
+            Method = "GET",
+            Headers = { ["Cache-Control"] = "no-cache" },
+        })
+        if ok and type(resp) == "table" and tonumber(resp.StatusCode) == 200 and type(resp.Body) == "string" then
+            return resp.Body
+        end
     end
 
     local ok2, body = pcall(function()
@@ -74,12 +93,12 @@ local function queueScriptOnTeleport(code)
 end
 
 local function buildGuiReexecCode()
-    local fetch = "local body=nil if type(request)=='function' then local ok,resp=pcall(request,{Url=u,Method='GET',Headers={['Cache-Control']='no-cache'}}) if ok and type(resp)=='table' and tonumber(resp.StatusCode)==200 and type(resp.Body)=='string' and resp.Body~='' then body=resp.Body end end if not body then local ok2,resp2=pcall(function() return game:HttpGet(u) end) if ok2 and type(resp2)=='string' and resp2~='' then body=resp2 end end"
+    local fetch = "local req=request if type(req)~='function' and type(http_request)=='function' then req=http_request end if type(req)~='function' and type(syn)=='table' and type(syn.request)=='function' then req=syn.request end if type(req)~='function' and type(http)=='table' and type(http.request)=='function' then req=http.request end local body=nil if type(req)=='function' then local ok,resp=pcall(req,{Url=u,Method='GET',Headers={['Cache-Control']='no-cache'}}) if ok and type(resp)=='table' and tonumber(resp.StatusCode)==200 and type(resp.Body)=='string' and resp.Body~='' then body=resp.Body end end if not body then local ok2,resp2=pcall(function() return game:HttpGet(u) end) if ok2 and type(resp2)=='string' and resp2~='' then body=resp2 end end"
     return ("local u=%q task.wait(5) for i=1,12 do %s local ok=false if type(body)=='string' and body~='' then local fn=loadstring(body) if fn then ok=pcall(fn) end end if ok then break end task.wait(2) end"):format(GUI_URL, fetch)
 end
 
 local function buildAutoRejoinCode()
-    local fetch = "local body=nil if type(request)=='function' then local ok,resp=pcall(request,{Url=u,Method='GET',Headers={['Cache-Control']='no-cache'}}) if ok and type(resp)=='table' and tonumber(resp.StatusCode)==200 and type(resp.Body)=='string' and resp.Body~='' then body=resp.Body end end if not body then local ok2,resp2=pcall(function() return game:HttpGet(u) end) if ok2 and type(resp2)=='string' and resp2~='' then body=resp2 end end"
+    local fetch = "local req=request if type(req)~='function' and type(http_request)=='function' then req=http_request end if type(req)~='function' and type(syn)=='table' and type(syn.request)=='function' then req=syn.request end if type(req)~='function' and type(http)=='table' and type(http.request)=='function' then req=http.request end local body=nil if type(req)=='function' then local ok,resp=pcall(req,{Url=u,Method='GET',Headers={['Cache-Control']='no-cache'}}) if ok and type(resp)=='table' and tonumber(resp.StatusCode)==200 and type(resp.Body)=='string' and resp.Body~='' then body=resp.Body end end if not body then local ok2,resp2=pcall(function() return game:HttpGet(u) end) if ok2 and type(resp2)=='string' and resp2~='' then body=resp2 end end"
     return ("pcall(function() local u=%q %s if type(body)=='string' and body~='' then local fn=loadstring(body) if fn then fn() end end end)"):format(REJOIN_URL, fetch)
 end
 

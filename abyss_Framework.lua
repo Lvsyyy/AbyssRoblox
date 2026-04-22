@@ -1,5 +1,21 @@
 local Framework = {}
 
+local function getRequestFn()
+    if type(request) == "function" then
+        return request
+    end
+    if type(http_request) == "function" then
+        return http_request
+    end
+    if type(syn) == "table" and type(syn.request) == "function" then
+        return syn.request
+    end
+    if type(http) == "table" and type(http.request) == "function" then
+        return http.request
+    end
+    return nil
+end
+
 function Framework.normalize(s)
     return string.lower(tostring(s or "")):gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
 end
@@ -399,8 +415,9 @@ function Framework.fetchLatestCommitVersion(owner, repo)
     repo = repo or "AbyssRoblox"
     local url = "https://api.github.com/repos/" .. owner .. "/" .. repo .. "/commits?per_page=1"
     local body = nil
-    if type(request) == "function" then
-        local okReq, resp = pcall(request, {
+    local req = getRequestFn()
+    if req then
+        local okReq, resp = pcall(req, {
             Url = url,
             Method = "GET",
             Headers = { ["Cache-Control"] = "no-cache" },

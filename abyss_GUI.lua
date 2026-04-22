@@ -14,6 +14,22 @@ local _defer = (task and task.defer) or function(fn, ...)
 end
 local LOADED_MODULES = {}
 
+local function getRequestFn()
+    if type(request) == "function" then
+        return request
+    end
+    if type(http_request) == "function" then
+        return http_request
+    end
+    if type(syn) == "table" and type(syn.request) == "function" then
+        return syn.request
+    end
+    if type(http) == "table" and type(http.request) == "function" then
+        return http.request
+    end
+    return nil
+end
+
 local function loadModule(name)
     if type(name) ~= "string" or name == "" then
         error("Invalid module name: " .. tostring(name))
@@ -25,8 +41,9 @@ local function loadModule(name)
 
     local url = BASE .. name .. ".lua"
     local src
-    if type(request) == "function" then
-        local okReq, resp = pcall(request, {
+    local req = getRequestFn()
+    if req then
+        local okReq, resp = pcall(req, {
             Url = url,
             Method = "GET",
             Headers = { ["Cache-Control"] = "no-cache" },
@@ -207,6 +224,7 @@ local setGeodeToggleVisual
 local setGeodeOnlyToggleVisual
 local setAutoDailyToggleVisual
 local setRoeToggleVisual
+local applyingSavedSettings = false
 
 local BTN_GREEN = Color3.fromRGB(46, 140, 87)
 local BTN_RED = Color3.fromRGB(150, 62, 62)
@@ -264,6 +282,31 @@ local function geodeNames(op, arg)
     return true
 end
 
+local function buildSettingsPayload()
+    return {
+        fishNames = fishAutoDelete.getNames(),
+        fishEnabled = fishAutoDelete.getEnabled(),
+        fishValueThreshold = fishAutoDelete.getValueThreshold and fishAutoDelete.getValueThreshold() or nil,
+        fishValueThresholdEnabled = fishAutoDelete.getValueThresholdEnabled and fishAutoDelete.getValueThresholdEnabled() or false,
+        antiAfk = antiOn,
+        artifactAutoDelete = getArtifactAutoDeleteList and getArtifactAutoDeleteList() or {},
+        shopItems = shopBuyer.getItems(),
+        shopEnabled = shopBuyer.getEnabled(),
+        geodeEnabled = geodeOpener.getEnabled(),
+        geodeNames = geodeNames("get"),
+        geodeOnly = geodeOnlyOn,
+        autoDaily = autoDailyOn,
+        roeAuto = roeAutoOn,
+    }
+end
+
+local function persistSettings()
+    if applyingSavedSettings then
+        return
+    end
+    Framework.saveSettings(SAVE_PATH, buildSettingsPayload())
+end
+
 local function setRoeAuto(on)
     roe.setEnabled(on == true)
     roeAutoOn = roe.getEnabled()
@@ -314,7 +357,12 @@ end
 
 local guiParent = resolveGuiParent()
 local old = guiParent:FindFirstChild("AbyssQoLGui") or pg:FindFirstChild("AbyssQoLGui")
-if old then old:Destroy() end
+if old then
+    if type(cache) == "table" and type(cache.invalidate) == "function" then
+        pcall(cache.invalidate, old)
+    end
+    old:Destroy()
+end
 
 local sg = Instance.new("ScreenGui")
 sg.Name = "AbyssQoLGui"
@@ -649,7 +697,7 @@ do
         return n, n ~= nil
     end
 
-    setFishThresholdToggleVisual = bindToggle(
+    setFishThresholdVisual = bindToggle(
         thresholdToggleBtn,
         fishAutoDelete.getValueThresholdEnabled,
         function(on)
@@ -665,17 +713,19 @@ do
             end
 
             fishAutoDelete.setValueThresholdEnabled(on)
+            persistSettings()
         end,
         "Treshold: On",
-        "Treshold: Off",
-        BTN_GREEN,
-        BTN_RED
+        "Treshold: Off"
     )
 
     setFishToggleVisual = bindToggle(
         toggleBtn,
         fishAutoDelete.getEnabled,
-        function(on) fishAutoDelete.setEnabled(on) end,
+        function(on)
+            fishAutoDelete.setEnabled(on)
+            persistSettings()
+        end,
         "Delete Fish: ON",
         "Delete Fish: OFF"
     )
@@ -684,6 +734,7 @@ do
         local n, hasValue = parseThresholdText()
         if hasValue then
             fishAutoDelete.setValueThreshold(n)
+            persistSettings()
         end
     end)
 
@@ -697,6 +748,7 @@ do
         onAdd = function(selectedFish)
             if fishAutoDelete.addName(selectedFish) then
                 refreshList()
+                persistSettings()
             end
         end,
         onRemove = function(selectedFish)
@@ -715,6 +767,7 @@ do
             if removed then
                 fishAutoDelete.setNames(keep)
                 refreshList()
+                persistSettings()
             end
         end,
         onRefresh = function() end,
@@ -780,22 +833,7 @@ do
     setGeodeOnlyToggleVisual(geodeOnlyOn, true)
 
     makeButton(row4, "Save Settings", BTN_PURPLE).MouseButton1Click:Connect(function()
-        local payload = {
-            fishNames = fishAutoDelete.getNames(),
-            fishEnabled = fishAutoDelete.getEnabled(),
-            fishValueThreshold = fishAutoDelete.getValueThreshold and fishAutoDelete.getValueThreshold() or nil,
-            fishValueThresholdEnabled = fishAutoDelete.getValueThresholdEnabled and fishAutoDelete.getValueThresholdEnabled() or false,
-            antiAfk = antiOn,
-            artifactAutoDelete = getArtifactAutoDeleteList and getArtifactAutoDeleteList() or {},
-            shopItems = shopBuyer.getItems(),
-            shopEnabled = shopBuyer.getEnabled(),
-            geodeEnabled = geodeOpener.getEnabled(),
-            geodeNames = geodeNames("get"),
-            geodeOnly = geodeOnlyOn,
-            autoDaily = autoDailyOn,
-            roeAuto = roeAutoOn,
-        }
-        Framework.saveSettings(SAVE_PATH, payload)
+        persistSettings()
     end)
 
     local row5 = makeRow(t, 2, 34)
@@ -1008,22 +1046,22 @@ end
 
 local function updateSettingsUI()
     if setFishToggleVisual then
-        setFishToggleVisual(fishAutoDelete.getEnabled())
+        setFishToggleVisual(fishAutoDelete.getEnabled(), true)
     end
     if setFishThresholdVisual then
-        setFishThresholdVisual()
+        setFishThresholdVisual(fishAutoDelete.getValueThresholdEnabled(), true)
     end
     if refreshFishList then
         refreshFishList()
     end
     if setShopToggleVisual then
-        setShopToggleVisual(shopBuyer.getEnabled())
+        setShopToggleVisual(shopBuyer.getEnabled(), true)
     end
     if refreshShopList then
         refreshShopList()
     end
     if setGeodeToggleVisual then
-        setGeodeToggleVisual(geodeOpener.getEnabled())
+        setGeodeToggleVisual(geodeOpener.getEnabled(), true)
     end
     if setGeodeOnlyToggleVisual then
         setGeodeOnlyToggleVisual(geodeOnlyOn, true)
@@ -1044,6 +1082,8 @@ local function loadSavedSettings()
     if type(decoded) ~= "table" then
         return false
     end
+
+    applyingSavedSettings = true
 
     if type(decoded.fishNames) == "table" then
         fishAutoDelete.setNames(decoded.fishNames)
@@ -1088,6 +1128,7 @@ local function loadSavedSettings()
     if decoded.roeAuto ~= nil then
         setRoeAuto(decoded.roeAuto == true)
     end
+    applyingSavedSettings = false
     updateSettingsUI()
     return true
 end
