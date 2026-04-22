@@ -173,7 +173,7 @@ end
 local function setValueThreshold(value)
     local n = tonumber(value)
     if n and n >= 0 then
-        valueThreshold = n
+        valueThreshold = math.floor(n)
     else
         valueThreshold = nil
         valueThresholdEnabled = false

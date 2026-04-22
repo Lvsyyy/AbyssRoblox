@@ -214,6 +214,7 @@ local autoDepositOn = false
 local setAntiAfk
 local setFishToggleVisual
 local setFishThresholdVisual
+local setFishThresholdTextVisual
 local refreshFishList
 local applyArtifactAutoDeleteList
 local getArtifactAutoDeleteList
@@ -693,8 +694,11 @@ do
     refreshFishList = refreshList
 
     local function parseThresholdText()
-        local n = tonumber(thresholdBox.Text)
-        return n, n ~= nil
+        local raw = tostring(thresholdBox.Text or ""):gsub("^%s+", ""):gsub("%s+$", "")
+        if raw:match("^%d+$") then
+            return tonumber(raw), true
+        end
+        return nil, false
     end
 
     setFishThresholdVisual = bindToggle(
@@ -718,6 +722,14 @@ do
         "Treshold: On",
         "Treshold: Off"
     )
+    setFishThresholdTextVisual = function()
+        local v = fishAutoDelete.getValueThreshold and fishAutoDelete.getValueThreshold() or nil
+        if type(v) == "number" then
+            thresholdBox.Text = tostring(math.floor(v))
+        else
+            thresholdBox.Text = ""
+        end
+    end
 
     setFishToggleVisual = bindToggle(
         toggleBtn,
@@ -735,6 +747,9 @@ do
         if hasValue then
             fishAutoDelete.setValueThreshold(n)
             persistSettings()
+        end
+        if setFishThresholdTextVisual then
+            setFishThresholdTextVisual()
         end
     end)
 
@@ -1050,6 +1065,9 @@ local function updateSettingsUI()
     end
     if setFishThresholdVisual then
         setFishThresholdVisual(fishAutoDelete.getValueThresholdEnabled(), true)
+    end
+    if setFishThresholdTextVisual then
+        setFishThresholdTextVisual()
     end
     if refreshFishList then
         refreshFishList()
